@@ -68,6 +68,7 @@ button { font-family: inherit; }
 #fullscreen-btn { display: none; position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: calc(70px + var(--hudx, 0px)); padding: 8px 12px; background: rgba(80,80,80,0.7); color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-size: 12px; z-index: 110; font-family: inherit; }
 #settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); color: #fff; z-index: 210; flex-direction: column; padding: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 /* v9.1: Back lives in a sticky header (always on screen, no scrolling needed); a second Back sits at the end of the list */
+#settings-overlay { scroll-padding-top: 60px; scroll-padding-bottom: 12px; }   /* v10 (N1): keep gamepad-focused rows out from under the sticky header */
 #set-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; flex: 0 0 auto; padding: max(6px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 6px max(18px, env(safe-area-inset-left)); background: #000; border-bottom: 1px solid #334; }
 #set-top h2 { margin: 0; flex: 1; }
 #set-top button, #set-bottom button { min-height: 44px; padding: 0 26px; font-size: 15px; font-weight: 700; background: #333; color: #fff; border: 1px solid #667; border-radius: 8px; }
@@ -106,6 +107,11 @@ canvas { display: block; }
 /* v9.1: tight per-text backing (only as wide / tall as the text itself, never a panel over the stick zone) keeps white HUD text >= 4.5:1 on bright arenas */
 #power, #weapon, #grenade, #revives, #mats, #perkhud { width: fit-content; background: rgba(0,0,0,0.62); border-radius: 4px; padding: 0 6px; box-sizing: border-box; }
 #mats { padding: 1px 6px; }
+/* v10 (N3): same tight backing for the top-right status and level lines */
+#status, #level-ui { width: fit-content; background: rgba(0,0,0,0.62); border-radius: 4px; padding: 0 6px; box-sizing: border-box; }
+#status:empty, #level-ui:empty { padding: 0; background: none; }
+/* v10 (N4): the currency line wraps instead of forcing a horizontal scroll on very narrow screens */
+#inv-top #inv-mats { white-space: normal; max-width: 100%; overflow-wrap: anywhere; min-width: 0; }
 #revives:empty, #perkhud:empty { padding: 0; background: none; }
 #ui .bar { box-shadow: 0 0 0 1px rgba(0,0,0,0.55); }
 #ui .bar > span { left: 2px; top: 0; padding: 0 4px; background: rgba(0,0,0,0.62); border-radius: 3px; text-shadow: 0 1px 1px #000; }   /* v9.1: bar label gets its own backing (white on the green / blue / yellow fill was the weakest text) */
@@ -256,6 +262,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 #fail-overlay .fi { color: #cde; margin-bottom: 10px; font-size: 14px; }
 /* v8: HUD legibility on light arenas (Lattice Atrium): double dark halo on all HUD text */
 #ui, #status, #level-ui, #perkhud, #revives, #objhud, #toast, #banner, .dmg, .mk { text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 7px rgba(0,0,0,0.75); }
+.eb.named{overflow:visible}.eb .nm{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);white-space:nowrap;font:600 10px sans-serif;color:#ffd45a;text-shadow:0 0 3px #000}
 </style>
 </head>
 <body>
@@ -861,7 +868,7 @@ function starterGear() {
 // =====================================================================
 const SAVE_KEY = 'dfps_save';
 const SAVE_VERSION = 6;
-const GAME_BUILD = 'v9.1-hotfix';
+const GAME_BUILD = 'v10-procgen';   // v10 (v9.1 hotfix ported into parts)
 const LEGACY_SAVE_KEY = 'dungeonfps.save.v2';        // v2-destiny .. v5-nostick wrote {v:2,...} here
 const LEGACY_SETTINGS_KEY = 'dungeonfps.settings.v1'; // v3-controls .. v5-nostick wrote settings here
 const BACKUP_PREFIX = 'dfps_backup_';
@@ -1562,6 +1569,7 @@ function addBox(cx, cz, w, d, h, mat, round) {
   boxes.push(b);
   return b;
 }
+const WORLD = { x0: -36, x1: 36, z0: -36, z1: 36 };   // v10: playable bounds (legacy arena +-36; a generated level sets its own bounding box)
 const ARENA = 36; // inner half-size: 72 x 72 m = 5184 m2 (was 54 x 54 = 2916 m2, ~1.78x)
 const glowCyan = new THREE.MeshBasicMaterial({ color: 0x66ddff });    // shared with the chest / vendor (never disposed)
 const glowOrange = new THREE.MeshBasicMaterial({ color: 0xffa040 });
@@ -1602,7 +1610,8 @@ function segHitsRect(ax, az, bx, bz, x0, x1, z0, z1) {
 }
 // true if the straight segment is free of walls (inflate = body radius)
 function segClear(ax, az, bx, bz, inflate = 0) {
-  for (const b of boxes) if (segHitsRect(ax, az, bx, bz, b.x0 - inflate, b.x1 + inflate, b.z0 - inflate, b.z1 + inflate)) return false;
+  const lx = Math.min(ax, bx) - inflate, hx = Math.max(ax, bx) + inflate, lz = Math.min(az, bz) - inflate, hz = Math.max(az, bz) + inflate;
+  for (const b of boxes) { if (b.rail || b.x1 < lx || b.x0 > hx || b.z1 < lz || b.z0 > hz) continue; if (segHitsRect(ax, az, bx, bz, b.x0 - inflate, b.x1 + inflate, b.z0 - inflate, b.z1 + inflate)) return false; }
   return true;
 }
 // 3D ray vs all boxes -> nearest distance (Infinity if none)
@@ -1627,32 +1636,47 @@ function rayBoxesDist(o, d) {
 }
 
 // ----- coarse nav grid + A* -----
-const G_N = ARENA * 2 + 4, G_O = -(ARENA + 2), G_N2 = G_N * G_N;
+let G_W = ARENA * 2 + 4, G_H = ARENA * 2 + 4, G_OX = -(ARENA + 2), G_OZ = -(ARENA + 2), G_N2 = G_W * G_H;
 function buildGrid(infl) {
   const blocked = new Uint8Array(G_N2);
-  for (let iz = 0; iz < G_N; iz++) for (let ix = 0; ix < G_N; ix++) {
-    const cx = G_O + ix + 0.5, cz = G_O + iz + 0.5;
-    for (const b of boxes) if (cx > b.x0 - infl && cx < b.x1 + infl && cz > b.z0 - infl && cz < b.z1 + infl) { blocked[iz * G_N + ix] = 1; break; }
+  for (const b of boxes) {
+    const ix0 = Math.max(0, Math.floor(b.x0 - infl - G_OX - 0.5) ), ix1 = Math.min(G_W - 1, Math.ceil(b.x1 + infl - G_OX - 0.5));
+    const iz0 = Math.max(0, Math.floor(b.z0 - infl - G_OZ - 0.5) ), iz1 = Math.min(G_H - 1, Math.ceil(b.z1 + infl - G_OZ - 0.5));
+    for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
+      const cx = G_OX + ix + 0.5, cz = G_OZ + iz + 0.5;
+      if (cx > b.x0 - infl && cx < b.x1 + infl && cz > b.z0 - infl && cz < b.z1 + infl) blocked[iz * G_W + ix] = 1;
+    }
   }
   return { blocked, infl };
 }
 const GRIDS = { small: buildGrid(0.7), big: buildGrid(1.45) };   // rebuilt by p2b.js (rebuildNavAndSpawns) whenever the arena changes
 const NAV = { g: new Float32Array(G_N2), par: new Int32Array(G_N2), mark: new Uint32Array(G_N2), closed: new Uint32Array(G_N2), stamp: 0 };
-const cellIdx = (x, z) => clamp(Math.floor(z - G_O), 0, G_N - 1) * G_N + clamp(Math.floor(x - G_O), 0, G_N - 1);
-const cellX = i => G_O + (i % G_N) + 0.5;
-const cellZ = i => G_O + Math.floor(i / G_N) + 0.5;
+// v10: the nav grid is sized to the world bounds (legacy 76x76; a generated level uses its own bounding box)
+function setWorld(x0, x1, z0, z1) {
+  WORLD.x0 = x0; WORLD.x1 = x1; WORLD.z0 = z0; WORLD.z1 = z1;
+  G_OX = Math.floor(x0) - 2; G_OZ = Math.floor(z0) - 2; G_W = Math.ceil(x1) + 2 - G_OX; G_H = Math.ceil(z1) + 2 - G_OZ; G_N2 = G_W * G_H;
+  NAV.g = new Float32Array(G_N2); NAV.par = new Int32Array(G_N2); NAV.mark = new Uint32Array(G_N2); NAV.closed = new Uint32Array(G_N2); NAV.stamp = 0;
+}
+const LV = { on: false, boss: false };   // v10: generated-level state (filled in by p8.js); .on = a procgen level / boss arena is the current world
+const PROCGEN = !/[?&]legacyarena=1/.test(location.search);   // v10: generated Strike levels (?legacyarena=1 restores the single arena)
+let GA = null;   // v10: ground height function (boss arena only); null = flat world
+const groundAt = (x, z) => GA ? GA(x, z) : 0;
+const inWorld = (x, z, m) => x > WORLD.x0 + (m || 0) && x < WORLD.x1 - (m || 0) && z > WORLD.z0 + (m || 0) && z < WORLD.z1 - (m || 0);
+const cellIdx = (x, z) => clamp(Math.floor(z - G_OZ), 0, G_H - 1) * G_W + clamp(Math.floor(x - G_OX), 0, G_W - 1);
+const cellX = i => G_OX + (i % G_W) + 0.5;
+const cellZ = i => G_OZ + Math.floor(i / G_W) + 0.5;
 function nearestFree(grid, i) {
   if (!grid.blocked[i]) return i;
-  const cx = i % G_N, cz = (i / G_N) | 0;
+  const cx = i % G_W, cz = (i / G_W) | 0;
   for (let r = 1; r <= 5; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
     if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
     const nx = cx + dx, nz = cz + dz;
-    if (nx < 0 || nz < 0 || nx >= G_N || nz >= G_N) continue;
-    if (!grid.blocked[nz * G_N + nx]) return nz * G_N + nx;
+    if (nx < 0 || nz < 0 || nx >= G_W || nz >= G_H) continue;
+    if (!grid.blocked[nz * G_W + nx]) return nz * G_W + nx;
   }
   return -1;
 }
-function pointFree(grid, x, z) { return !grid.blocked[cellIdx(x, z)] && Math.abs(x) < ARENA - 0.6 && Math.abs(z) < ARENA - 0.6; }
+function pointFree(grid, x, z) { return !grid.blocked[cellIdx(x, z)] && inWorld(x, z, 0.6); }
 const DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.4142], [1, -1, 1.4142], [-1, 1, 1.4142], [-1, -1, 1.4142]];
 function findPath(grid, sx, sz, tx, tz) {
   const s = nearestFree(grid, cellIdx(sx, sz)), t = nearestFree(grid, cellIdx(tx, tz));
@@ -1670,22 +1694,22 @@ function findPath(grid, sx, sz, tx, tz) {
     }
     return top;
   };
-  const tx0 = t % G_N, tz0 = (t / G_N) | 0;
-  const heur = i => { const dx = Math.abs((i % G_N) - tx0), dz = Math.abs(((i / G_N) | 0) - tz0); return Math.max(dx, dz) + 0.4142 * Math.min(dx, dz); };
+  const tx0 = t % G_W, tz0 = (t / G_W) | 0;
+  const heur = i => { const dx = Math.abs((i % G_W) - tx0), dz = Math.abs(((i / G_W) | 0) - tz0); return Math.max(dx, dz) + 0.4142 * Math.min(dx, dz); };
   g[s] = 0; mark[s] = st; par[s] = -1; push(s, heur(s));
   let exp = 0;
   while (hI.length) {
     const cur = pop();
     if (closed[cur] === st) continue;
     closed[cur] = st;
-    if (cur === t || ++exp > 5200) break;
-    const cx = cur % G_N, cz = (cur / G_N) | 0;
+    if (cur === t || ++exp > 8000) break;
+    const cx = cur % G_W, cz = (cur / G_W) | 0;
     for (const [dx, dz, c] of DIRS) {
       const nx = cx + dx, nz = cz + dz;
-      if (nx < 0 || nz < 0 || nx >= G_N || nz >= G_N) continue;
-      const ni = nz * G_N + nx;
+      if (nx < 0 || nz < 0 || nx >= G_W || nz >= G_H) continue;
+      const ni = nz * G_W + nx;
       if (blocked[ni] || closed[ni] === st) continue;
-      if (dx && dz && (blocked[cz * G_N + nx] || blocked[nz * G_N + cx])) continue;
+      if (dx && dz && (blocked[cz * G_W + nx] || blocked[nz * G_W + cx])) continue;
       const ng = g[cur] + c;
       if (mark[ni] !== st || ng < g[ni]) { mark[ni] = st; g[ni] = ng; par[ni] = cur; push(ni, ng + heur(ni)); }
     }
@@ -1708,6 +1732,7 @@ function findPath(grid, sx, sz, tx, tz) {
 // safe spawn points for the player (free cells on a ring) - refilled on every arena build
 function rebuildSafeSpawns() {
   safeSpawns.length = 0;
+  if (LV.on) { for (const r of LV.rooms) { const m = r.m && (r.m.player || (r.m.hall && r.m.hall[0])); if (m) safeSpawns.push(new THREE.Vector3(m[0], 1.6, m[1])); } if (!safeSpawns.length) safeSpawns.push(new THREE.Vector3(0, 1.6, 0)); return; }
   for (let i = 0; i < 60 && safeSpawns.length < 14; i++) {
     const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * (ARENA - 15);
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
@@ -1877,19 +1902,19 @@ function arenaGeoFlame() { if (!arenaGeoCache.flame) { arenaGeoCache.flame = new
 
 // flood-fill reachability from the player start: fraction of free arena cells reached
 function navCoverage(grid) {
-  const N = G_N, seen = new Uint8Array(G_N2), q = new Int32Array(G_N2);
+  const N = G_W, seen = new Uint8Array(G_N2), q = new Int32Array(G_N2);
   let s = cellIdx(0, 12); s = nearestFree(grid, s); if (s < 0) return 0;
   let h = 0, t = 0; q[t++] = s; seen[s] = 1; let reached = 0;
   while (h < t) {
     const c = q[h++]; reached++;
     const cx = c % N, cz = (c / N) | 0;
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx + dx, nz = cz + dz; if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+      const nx = cx + dx, nz = cz + dz; if (nx < 0 || nz < 0 || nx >= N || nz >= G_H) continue;
       const j = nz * N + nx; if (seen[j] || grid.blocked[j]) continue; seen[j] = 1; q[t++] = j;
     }
   }
   let free = 0;
-  for (let iz = 0; iz < N; iz++) for (let ix = 0; ix < N; ix++) { const x = cellX(iz * N + ix), z = cellZ(iz * N + ix); if (Math.abs(x) < ARENA - 1 && Math.abs(z) < ARENA - 1 && !grid.blocked[iz * N + ix]) free++; }
+  for (let iz = 0; iz < G_H; iz++) for (let ix = 0; ix < N; ix++) { const x = cellX(iz * N + ix), z = cellZ(iz * N + ix); if (Math.abs(x) < ARENA - 1 && Math.abs(z) < ARENA - 1 && !grid.blocked[iz * N + ix]) free++; }
   return free ? Math.min(1, reached / free) : 0;
 }
 function rebuildNavAndSpawns() {
@@ -1898,6 +1923,8 @@ function rebuildNavAndSpawns() {
 }
 function buildArena(idx) {
   const T = ARENA_THEMES[idx];
+  if (typeof levelDispose === 'function' && LV.on) levelDispose();   // v10: leaving a generated level
+  if (WORLD.x1 !== ARENA || WORLD.x0 !== -ARENA || WORLD.z0 !== -ARENA || WORLD.z1 !== ARENA) setWorld(-ARENA, ARENA, -ARENA, ARENA);
   let tries = 0, cov = 0;
   do {
     disposeArena(); buildArenaGeometry(T); rebuildNavAndSpawns();
@@ -2014,7 +2041,7 @@ function updateProjectiles(dt) {
       m.position.x += p.vx * sd; m.position.y += p.vy * sd; m.position.z += p.vz * sd;
       if (p.gravity) p.vy -= p.gravity * sd;
       const px = m.position.x, py = m.position.y, pz = m.position.z;
-      if (py < 0.05 || pointInBoxes(px, py, pz) || Math.abs(px) > ARENA + 2 || Math.abs(pz) > ARENA + 2) {
+      if (py < groundAt(px, pz) + 0.05 || pointInBoxes(px, py, pz) || !inWorld(px, pz, -2)) {
         if (p.kind === 'bolt') fx('burst', px, Math.max(py, 0.1), pz, p.color, 0.5, 0.2, 0.6);
         projExplode(p); dead = true; break;
       }
@@ -2174,6 +2201,7 @@ const slamDiscGeo = new THREE.CircleGeometry(1, 36); slamDiscGeo.rotateX(-Math.P
 const bubbleGeo = new THREE.SphereGeometry(1, 16, 12);
 
 function pickSpawnPoint(big, minDist, avoid) {
+  if (LV.on) return lvPickSpawn(big, minDist, avoid);   // v10: generated levels spawn from room markers
   const grid = big ? GRIDS.big : GRIDS.small;
   let fallback = null;
   for (let t = 0; t < 60; t++) {
@@ -2215,7 +2243,8 @@ function spawnEnemy(type, at, opts) {
   };
   if (def.ghost || opts.instant) u.spawnUntil = gt;
   const p = at || pickSpawnPoint(type === 'boss', type === 'sniper' ? 22 : 0, opts.avoid);
-  root.position.set(p.x, 0, p.z); u.lastX = p.x; u.lastZ = p.z;
+  const g0 = groundAt(p.x, p.z); root.position.set(p.x, g0, p.z); u.lastX = p.x; u.lastZ = p.z; u.gy = g0;
+  if (opts.idle) u.idle = true; if (opts.mini) u.mini = opts.mini; if (opts.room !== undefined) u.room = opts.room; if (opts.pad) u.pad = opts.pad; if (opts.obj) u.obj = true;
   // shield bubble (majors + boss)
   if (shield > 0) {
     const bm = new THREE.MeshBasicMaterial({ color: ELEMENTS[element].color, transparent: true, opacity: 0.22, depthWrite: false });
@@ -2233,9 +2262,9 @@ function spawnEnemy(type, at, opts) {
   }
   // floating health bar (boss uses the top bar)
   if (def.tier !== 'boss' && !def.noBar) {
-    const bar = document.createElement('div'); bar.className = 'eb' + (def.tier === 'major' ? ' major' : '');
-    bar.innerHTML = '<div class="h"></div>' + (shield > 0 ? '<div class="s"></div>' : '');
-    $('health-bars').appendChild(bar); u.bar = bar; u.barH = bar.firstChild; u.barS = shield > 0 ? bar.lastChild : null;
+    const bar = document.createElement('div'); bar.className = 'eb' + (def.tier === 'major' ? ' major' : '') + (opts.name ? ' named' : '');
+    bar.innerHTML = (opts.name ? '<div class="nm">' + opts.name + '</div>' : '') + '<div class="h"></div>' + (shield > 0 ? '<div class="s"></div>' : '');
+    $('health-bars').appendChild(bar); u.bar = bar; u.barH = bar.querySelector('.h'); u.barS = shield > 0 ? bar.lastChild : null;
   }
   root.scale.setScalar(0.3);
   scene.add(root); enemies.push(root);
@@ -2265,6 +2294,8 @@ function dealDamage(e, dmg, o = {}) {
   if (u.dead || gt < u.spawnUntil) return 0;
   if (u.invuln) { u.immuneHits = (u.immuneHits | 0) + 1; return 0; }    // Ward gate: the boss takes exactly 0
   if (gt < u.vulnUntil) dmg *= u.vulnMult || 1.25;                      // Exposed / stunned windows
+  if (u.idle) u.idle = false;
+  if (u.mini && u.shield > 0) dmg *= miniPlateMult(e);                // v10: Bulwark front plate
   dmg *= o.ability ? clamp(playerDmgMult(u.power), 0.85, 1.3) : playerDmgMult(u.power);   // grenades/supers: gentler power-gap penalty
   const bw = o.weapon || o.bonusWeapon;
   if (bw && bw.rarity === 3 && u.tier === 'minor') dmg *= EXOTIC_MINOR_MULT;
@@ -2286,6 +2317,7 @@ function dealDamage(e, dmg, o = {}) {
 function shieldBroken(e) {
   const u = e.userData;
   if (u.type === 'boss') bossShieldBroken(e);
+  if (u.mini) miniShieldBroken(e);
   if (u.bubble) { u.bubble.visible = false; u.bubble.raycast = noopRaycast; }
   fx('burst', e.position.x, e.position.y + u.def.h * 0.5, e.position.z, ELEMENTS[u.element].color, u.def.h * 0.9, 0.35, 0.5);
   sweep(900, 200, 0.25, 'triangle', 0.08);
@@ -2333,6 +2365,7 @@ function killEnemy(e, o = {}) {
   if (Math.random() < dropChance) spawnLoot(generateLoot(tier), pos.x, pos.z);
   if (tier === 'boss' && activity.mode !== 'strike') spawnLoot(generateLoot('boss'), pos.x + 1.5, pos.z);   // strikes pay out through the strike chest instead
   dropMats(x, z, tier);
+  if (u.mini) lvMiniKilled(e, pos.x, pos.z);
   const pw = getItem(equip.power);
   if (pw && Math.random() < (tier === 'minor' ? 0.09 : tier === 'major' ? 0.35 : 1) * (1 + apn('ammofinder', 2))) spawnAmmo(pos.x + rand(-1, 1), pos.z + rand(-1, 1));
   saveSoon();
@@ -2453,7 +2486,7 @@ const AI = {
       if (!u.wind && gt >= u.meleeAt) { u.wind = gt + 0.3; u.muzzle.visible = true; u.muzzle.position.set(0, 1.2, 0.6); u.muzzle.scale.setScalar(0.3); }
     } else if (gt >= u.pauseUntil) {
       let tx = px, tz = pz;
-      if (u.flank && dist > 9) { tx = px + (-dz / dist) * u.flank * 7; tz = pz + (dx / dist) * u.flank * 7; tx = clamp(tx, -(ARENA - 2), ARENA - 2); tz = clamp(tz, -(ARENA - 2), ARENA - 2); }
+      if (u.flank && dist > 9) { tx = px + (-dz / dist) * u.flank * 7; tz = pz + (dx / dist) * u.flank * 7; tx = clamp(tx, WORLD.x0 + 2, WORLD.x1 - 2); tz = clamp(tz, WORLD.z0 + 2, WORLD.z1 - 2); }
       pathMove(e, tx, tz, sp);
       if (u.los && dist < 13) strafe(e, dist, dx, dz, sp * 0.55);
     }
@@ -2546,6 +2579,8 @@ function updateEnemy(e, dt) {
     u.hadLos = u.los;
   }
   if (u.type === 'boss') bossTick(e);
+  if (u.idle) { if ((u.los && dist < 15) || dist < 6) u.idle = false; else { e.lookAt(px, e.position.y, pz); return; } }   // v10: sentries stand until they notice you or are hit
+  if (u.staggerUntil > gt) { u.vx = u.vz = 0; u.cvx *= 0.8; u.cvz *= 0.8; e.lookAt(px, e.position.y, pz); return; }   // v10: shield-break stagger (mini-boss)
   if (u.act) {
     const k = (gt - u.act.start) / u.act.dur;
     u.muzzle.scale.setScalar((def.tier === 'boss' ? 0.35 : 0.14) + k * (def.tier === 'boss' ? 0.5 : 0.22) * (0.8 + 0.2 * Math.sin(gt * 30)));
@@ -2555,7 +2590,9 @@ function updateEnemy(e, dt) {
     const b = u.burst; enemyShoot(e, b.o); b.i++; b.next = gt + b.gap;
     if (b.i >= b.n) { u.burst = null; if (b.after) b.after(e); }
   }
+  const y0 = e.position.y;
   e.lookAt(px, e.position.y, pz);
+  if (u.mini && typeof miniFace === 'function') miniFace(e, u, dt);
   if (u.zoneGoal && !u.act && !u.burst) {       // strike capture stages: reinforcements head for the zone until they can see the player
     if (u.los || gt > u.zoneGoalUntil) u.zoneGoal = null; else pathMove(e, u.zoneGoal.x, u.zoneGoal.z, def.speed);
   }
@@ -2565,6 +2602,7 @@ function updateEnemy(e, dt) {
   const k = Math.min(1, dt * 7);
   u.cvx += (u.vx - u.cvx) * k; u.cvz += (u.vz - u.cvz) * k;
   e.position.x += u.cvx * dt; e.position.z += u.cvz * dt;
+  { const g = groundAt(e.position.x, e.position.z); if (e.position.y !== y0) e.position.y += g; else e.position.y += g - u.gy; u.gy = g; }   // v10: stand on elevated boss-arena decks
   // flash on hit
   if (u.flashUntil > gt) { if (!u.flashing) { u.flashing = true; for (const m of u.mats) m.emissive.setHex(0x666666); } }
   else if (u.flashing) { u.flashing = false; u.curTint = -1; }
@@ -2598,8 +2636,8 @@ function resolveEnemies() {
   for (const e of enemies) {
     if (e.userData.def.ghost) continue;
     pushOut(e.position, e.userData.r);
-    e.position.x = clamp(e.position.x, -ARENA + e.userData.r, ARENA - e.userData.r);
-    e.position.z = clamp(e.position.z, -ARENA + e.userData.r, ARENA - e.userData.r);
+    e.position.x = clamp(e.position.x, WORLD.x0 + e.userData.r, WORLD.x1 - e.userData.r);
+    e.position.z = clamp(e.position.z, WORLD.z0 + e.userData.r, WORLD.z1 - e.userData.r);
   }
 }
 function updateEnemies(dt) {
@@ -2642,11 +2680,13 @@ function pumpSpawns(maxAlive, spawnOpts) {
   if (gt < nextSpawnAt) return false;
   for (const q of [bossQueue, spawnQueue]) {
     for (let i = 0; i < q.length; i++) {
-      const t = q[i], d = ENEMY_DEFS[t];
-      if (d.free) { if (t === 'shriek' && typeCount('shriek') >= 3) continue; }
+      const raw = q[i], ai = raw.indexOf('@'), t = ai < 0 ? raw : raw.slice(0, ai), d = ENEMY_DEFS[t];
+      if (d.free) { if (t === 'shriek' && typeCount('shriek') >= (LV.boss ? 6 : 3)) continue; }
       else if (liveCount() >= maxAlive) continue;
       q.splice(i, 1);
-      const e = spawnEnemy(t, null, spawnOpts && spawnOpts(t));
+      const so = (spawnOpts && spawnOpts(t)) || {}; let at = null;
+      if (ai >= 0 && LV.boss) { at = lvPadPoint(raw.slice(ai + 1)); if (at) so.pad = raw.slice(ai + 1); }
+      const e = spawnEnemy(t, at, so);
       if (spawnHook) spawnHook(e, t);
       nextSpawnAt = gt + (t === 'shriek' ? 0.25 : 0.6);
       return true;
@@ -2718,6 +2758,7 @@ function sniperMuzzle(e, out) {
 }
 const _sm = new THREE.Vector3();
 function sniperPerch(e) {
+  if (LV.boss) return lvSniperPerch(e);
   const px = camera.position.x, pz = camera.position.z; let best = null, bs = 1e9;
   for (let t = 0; t < 24; t++) {
     const a = Math.random() * 6.283, d = rand(18, 30), x = px + Math.cos(a) * d, z = pz + Math.sin(a) * d;
@@ -2808,7 +2849,7 @@ AI.shriek = function (e, dt, dist, dx, dz) {
     const t = gt - u.dashStart, v = Math.min(11, 4 + t * 20);
     u.vx = u.dashX * v; u.vz = u.dashZ * v; u.cvx = u.vx; u.cvz = u.vz;
     const px = camera.position.x, pz = camera.position.z, traveled = Math.hypot(e.position.x - u.dashSx, e.position.z - u.dashSz);
-    const hitWall = circleBlocked(e.position.x + u.dashX * 0.7, e.position.z + u.dashZ * 0.7, 0.3) || Math.abs(e.position.x) > ARENA - 0.8 || Math.abs(e.position.z) > ARENA - 0.8;
+    const hitWall = circleBlocked(e.position.x + u.dashX * 0.7, e.position.z + u.dashZ * 0.7, 0.3) || !inWorld(e.position.x, e.position.z, 0.8);
     if (dist < 1.4 || hitWall || t >= 1.4 || traveled >= 14) shriekExplode(e);
   }
 };
@@ -2836,7 +2877,7 @@ AI.orb = function (e, dt, dist, dx, dz) {
     if (dist < 3) damagePlayer(u.def.bolt * enemyDmgMult(u.power), u.tier);
     u.dead = true; removeEnemy(e); return;
   }
-  if (gt - u.born > 8 || pointInBoxes(e.position.x, 1.3, e.position.z) || Math.abs(e.position.x) > ARENA - 0.5 || Math.abs(e.position.z) > ARENA - 0.5) {
+  if (gt - u.born > 8 || pointInBoxes(e.position.x, 1.3, e.position.z) || !inWorld(e.position.x, e.position.z, 0.5)) {
     fx('ring', e.position.x, 0.2, e.position.z, u.def.color, 2, 0.4, 0.5); removeEnemy(e);
   }
 };
@@ -2858,7 +2899,7 @@ function bossTick(e) {
   const u = e.userData; if (u.dead) return;
   if (!u.bi) bossInit(e);
   if (u.phase === 1 && !u.fl.sh75 && u.maxShield > 0 && u.shield <= u.maxShield * 0.75) { u.fl.sh75 = true; bossAdds(['shriek', 'shriek']); }
-  if (u.fl.p2At && !u.fl.p2 && gt >= u.fl.p2At) { u.fl.p2 = true; bossAdds(['captain', 'sniper']); }
+  if (u.fl.p2At && !u.fl.p2 && gt >= u.fl.p2At) { u.fl.p2 = true; bossAdds(LV.boss ? ['captain@EP-2', 'sniper@P-E'] : ['captain', 'sniper']); }
   if (u.phase === 2 && !u.fl.p3 && u.shield <= 0 && u.hp <= u.maxHp * 0.4 + 0.5 && !u.gate && !u.invuln) bossLastStand(e);
   if (u.strike) {
     if (!u.gate && u.gatesDone < 2 && u.phase >= 2 && u.shield <= 0 && u.hp <= u.maxHp * (u.gatesDone === 0 ? 0.7 : 0.35) + 0.5) startGate(e);
@@ -2871,12 +2912,14 @@ function bossShieldBroken(e) {
   u.act = null; u.burst = null; u.ch = null; u.muzzle.visible = false; if (u.disc) u.disc.visible = false; if (u.chLine) u.chLine.visible = false;
   showBanner(NAMES.boss.toUpperCase() + "'S SHIELD BREAKS", 'Exposed \u2014 hit him now!'); sweep(600, 80, 0.7, 'sawtooth', 0.12);
   fx('ring', e.position.x, 0.2, e.position.z, u.bossCol, 8, 0.8, 0.8);
+  if (LV.boss) { lvPhase('p2'); bossAdds(['knight@MP-1', 'dreg', 'dreg']); }
 }
 function bossLastStand(e) {
   const u = e.userData; u.fl.p3 = true; u.phase = 3; u.enraged = true;
   showBanner(NAMES.boss.toUpperCase() + ' IS ENRAGED', 'Last Stand'); sweep(90, 200, 0.8, 'sawtooth', 0.14);
   const add = ['dreg', 'dreg', 'dreg', 'shriek', 'shriek'];
   if (!u.strike && wave >= 12) add.push('knight');
+  if (LV.boss) { lvPhase('p3'); add.push('knight@MP-2'); }
   bossAdds(add);
 }
 function bossCleanup(e) {
@@ -2898,6 +2941,7 @@ function startGate(e) {
   const k = 1 + 0.005 * (u.power - 100), pts = [];
   for (let i = 0; i < n; i++) {
     let p = null;
+    if (LV.boss) p = lvGateSockets(n)[i];
     for (let t = 0; t < 30 && !p; t++) {
       const q = pickSpawnPoint(false, 0); if (!q) continue;
       if (Math.hypot(q.x - e.position.x, q.z - e.position.z) < 6) continue;
@@ -2909,6 +2953,7 @@ function startGate(e) {
     const b = spawnEnemy('beacon', p, { hp: 250 * k, fixedHp: true, shield: 0, element: u.element, strike: true, instant: true });
     b.userData.spawnUntil = gt + 0.4;
   }
+  if (LV.boss) lvPhase(first ? 'gate1' : 'gate2');
   showBanner(NAMES.gate, 'Destroy ' + n + ' beacons to break his invulnerability'); sweep(200, 700, 0.6, 'sawtooth', 0.1);
 }
 function beaconDown(be) {
@@ -2922,6 +2967,7 @@ function beaconDown(be) {
   u.nextAtk = gt + g.stun + 0.5;
   showBanner(NAMES.gateDown, NAMES.boss + ' is stunned \u2014 unload!'); sweep(900, 100, 0.7, 'sawtooth', 0.12);
   fx('ring', boss.position.x, 0.2, boss.position.z, 0x66ddff, 9, 0.8, 0.8);
+  if (LV.boss) lvPhase('gateDown');
 }
 
 // ---- the boss ----
@@ -2933,7 +2979,7 @@ AI.boss = function (e, dt, dist, dx, dz) {
     const c = u.ch, t = gt - c.t0;
     u.vx = c.dx * 18; u.vz = c.dz * 18; u.cvx = u.vx; u.cvz = u.vz;
     const nx = e.position.x + c.dx * 1.2, nz = e.position.z + c.dz * 1.2;
-    const blocked = circleBlocked(nx, nz, u.r) || Math.abs(nx) > ARENA - 1.5 || Math.abs(nz) > ARENA - 1.5;
+    const blocked = circleBlocked(nx, nz, u.r) || !inWorld(nx, nz, 1.5);
     if (!c.hit && !player.dead && dist < u.r + 1.1) {
       c.hit = true; damagePlayer(def.melee * enemyDmgMult(u.power), u.tier);
       camera.position.x += c.dx * 4; camera.position.z += c.dz * 4; pushOut(camera.position, 0.4);
@@ -2974,7 +3020,7 @@ AI.boss = function (e, dt, dist, dx, dz) {
     startAct(e, tel, b => {
       u.disc.visible = false; fx('ring', b.position.x, 0.1, b.position.z, 0xff5522, R, 0.5, 0.9); sweep(90, 30, 0.5, 'sawtooth', 0.2);
       const d2 = Math.hypot(camera.position.x - b.position.x, camera.position.z - b.position.z);
-      if (d2 < R && camera.position.y < 2.7 && !player.dead) damagePlayer(38 * enemyDmgMult(u.power), u.tier);
+      if (d2 < R && camera.position.y < 2.7 + groundAt(camera.position.x, camera.position.z) && !player.dead) damagePlayer(38 * enemyDmgMult(u.power), u.tier);
     });
   } else if (r < 0.65) {                                            // volley fan
     const h = p3 ? 4 : 3;
@@ -3139,6 +3185,7 @@ function refreshWeaponModel() {
   grip.position.set(0.28, -0.42, -0.35); g.add(grip);
   const strip = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.03, 0.3), new THREE.MeshBasicMaterial({ color: def ? def.color : ELEMENTS[w.element].color }));
   strip.position.set(0.28, -0.205, -0.5); g.add(strip);
+  { const tn = strikeTint(w); if (tn && !def) { body.material.color.setHex(tn.body); body.material.emissive.setHex(tn.body); strip.material.color.setHex(tn.trim); const gl = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.2), new THREE.MeshBasicMaterial({ color: tn.glow })); gl.position.set(0.28, -0.23, -0.36); g.add(gl); } }   // v10: Relay Yard items carry the Signalward tint
   if (def) {   // exotic: glowing core + muzzle tip in the exotic's signature colour
     const core = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: def.color })); core.position.set(0.28, -0.23, -0.36); g.add(core);
     const tip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), new THREE.MeshBasicMaterial({ color: def.color })); tip.position.set(0.28, -0.24, big ? -1.27 : -1.03); g.add(tip);
@@ -3471,8 +3518,9 @@ function pickSpot(minD, maxD, avoid) {
   const px = camera.position.x, pz = camera.position.z;
   for (let t = 0; t < 220; t++) {
     const relax = t > 140 ? 0.5 : 1;
-    const x = rand(-(ARENA - 5), ARENA - 5), z = rand(-(ARENA - 5), ARENA - 5);
+    const x = rand(WORLD.x0 + 5, WORLD.x1 - 5), z = rand(WORLD.z0 + 5, WORLD.z1 - 5);
     if (!pointFree(GRIDS.big, x, z)) continue;
+    if (LV.boss && (x < -29 || x > 29 || z < -33 || z > 25 || groundAt(x, z) !== 0)) continue;
     const dp = Math.hypot(x - px, z - pz); if (dp < minD * relax || dp > maxD / relax) continue;
     let ok = true; for (const a of avoid) if (Math.hypot(x - a.x, z - a.z) < 14 * relax) { ok = false; break; }
     if (!ok) continue;
@@ -3481,7 +3529,7 @@ function pickSpot(minD, maxD, avoid) {
   }
   for (let i = 0; i < G_N2; i++) {
     const j = (i * 7919) % G_N2;
-    if (!GRIDS.big.blocked[j]) { const x = cellX(j), z = cellZ(j); if (Math.abs(x) < ARENA - 3 && Math.abs(z) < ARENA - 3) return { x, z }; }
+    if (!GRIDS.big.blocked[j]) { const x = cellX(j), z = cellZ(j); if (inWorld(x, z, 3)) return { x, z }; }
   }
   return { x: 0, z: 0 };
 }
@@ -3570,7 +3618,7 @@ function showChestPop(rows) {
   let h = '<h3>CHEST OPENED &mdash; ' + rows.length + ' ITEMS</h3>';
   for (const r of rows) {
     const it = r.it, d = r.delta;
-    h += '<div class="ci" style="border-left-color:' + rcol(it) + '"><span><b style="color:' + rcol(it) + '">' + it.name + '</b><br><small style="color:#9ab">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] + '</small></span>' +
+    h += '<div class="ci" style="border-left-color:' + bcol(it) + '"><span><b style="color:' + rcol(it) + '">' + it.name + '</b><br><small style="color:#9ab">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] + '</small></span>' +
       '<span style="text-align:right">PWR <b>' + it.power + '</b><br>' + (d === null ? '<small class="up">NEW SLOT</small>' : d > 0 ? '<small class="up">\u25B2 +' + d + '</small>' : d < 0 ? '<small class="down">\u25BC ' + d + '</small>' : '<small style="color:#9ab">=</small>') + '</span></div>';
   }
   h += '<div class="acts"><button id="cp-gear" type="button">Gear</button><button id="cp-ok" class="go" type="button">OK</button></div>';
@@ -3598,7 +3646,7 @@ function renderShop() {
   inter.stock.forEach((it, i) => {
     const cur = getItem(equip[it.slot]);
     const card = ce('div', 'card' + (it.sold ? ' sold' : ''));
-    card.style.borderLeftColor = rcol(it);
+    card.style.borderLeftColor = bcol(it);
     let stats;
     if (it.kind === 'weapon') stats = 'Dmg ' + it.damage + (it.pellets > 1 ? 'x' + it.pellets : '') + ' &bull; ' + rpm(it) + ' RPM &bull; ' + it.range + 'm &bull; <span style="color:' + hex(ELEMENTS[it.element].color) + '">' + ELEMENTS[it.element].name + '</span>';
     else stats = 'Res ' + it.stats.res + ' &bull; Rec ' + it.stats.rec + ' &bull; Mob ' + it.stats.mob + ' (' + (it.stats.res + it.stats.rec + it.stats.mob) + ')';
@@ -3708,7 +3756,8 @@ function updateInter(dt) {
 // =====================================================================
 //  MINIMAP (north-up, whole arena)
 // =====================================================================
-const mmEl = $('minimap'), mmCtx = mmEl.getContext('2d'), MM = 144, MMS = MM / (ARENA * 2 + 4);
+const mmEl = $('minimap'), mmCtx = mmEl.getContext('2d'), MM = 144;
+let MMS = MM / (ARENA * 2 + 4), MMX0 = -(ARENA + 2), MMZ0 = -(ARENA + 2);   // v10: the minimap frame follows the world bounds
 // v9: the minimap no longer relies on a cached bitmap or on the visible canvas keeping its pixels (a phone can discard a 2D canvas backing store after an app switch /
 // fullscreen toggle / memory trim: the v8 map then stayed see-through and the arrow left a white trail). Every redraw clears the canvas and repaints background + cover.
 const mmStatic = document.createElement('canvas'); mmStatic.width = mmStatic.height = MM;   // kept as a mirror of the cover layer (QA tooling inspects it); the visible map no longer depends on it
@@ -3717,10 +3766,12 @@ function drawMmStatic(g) {
   g = g || mmCtx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.clearRect(0, 0, MM, MM);
   g.fillStyle = (arenaTheme && arenaTheme.mmBg) || '#10151c'; g.fillRect(0, 0, MM, MM);
   g.fillStyle = (arenaTheme && arenaTheme.mmFg) || '#3a4658';
-  for (const b of boxes) g.fillRect((b.x0 + ARENA + 2) * MMS, (b.z0 + ARENA + 2) * MMS, Math.max(1.5, (b.x1 - b.x0) * MMS), Math.max(1.5, (b.z1 - b.z0) * MMS));
+  if (LV.on) { lvDrawMm(g); return; }   // v10: visited rooms only
+  for (const b of boxes) g.fillRect((b.x0 - MMX0) * MMS, (b.z0 - MMZ0) * MMS, Math.max(1.5, (b.x1 - b.x0) * MMS), Math.max(1.5, (b.z1 - b.z0) * MMS));
 }
-arenaMmHook = () => { mmT = 1; };
-const mmX = x => (x + ARENA + 2) * MMS, mmZ = z => (z + ARENA + 2) * MMS;
+arenaMmHook = () => { mmSetFrame(); };
+const mmX = x => (x - MMX0) * MMS, mmZ = z => (z - MMZ0) * MMS;
+function mmSetFrame() { if (LV.on) { const w = WORLD.x1 - WORLD.x0 + 4, h = WORLD.z1 - WORLD.z0 + 4; MMS = MM / Math.max(w, h); MMX0 = WORLD.x0 - 2 - (Math.max(w, h) - w) / 2; MMZ0 = WORLD.z0 - 2 - (Math.max(w, h) - h) / 2; } else { MMS = MM / (ARENA * 2 + 4); MMX0 = MMZ0 = -(ARENA + 2); } mmT = 1; }
 let mmT = 0, mmT2 = 0;
 function mmRefresh() { mmT = 1; }   // next drawMinimap tick repaints everything
 // Rebuild EVERY cached 2D canvas (minimap bitmap + its cover mirror, the vendor sign texture). Browsers may discard canvas backing stores when the app is backgrounded,
@@ -4269,7 +4320,7 @@ function perkChips(w, chip) {
 //  Patrol (the endless wave mode) is untouched except for its payout scale (PATROL_PAYOUT).
 // =====================================================================
 const STRIKE_DEFS = {
-  fallen_outpost: { id: 'fallen_outpost', name: NAMES.strikeOutpost, tag: NAMES.strikeOutpostTag, theme: 'default', arena: 0, stages: 4, par: 540, estMin: 9,
+  fallen_outpost: { id: 'fallen_outpost', name: NAMES.strikeOutpost, tag: NAMES.strikeOutpostTag, theme: 'default', arena: 0, stages: 4, par: PROCGEN ? 780 : 540, estMin: PROCGEN ? 13 : 9,
     stageNames: ['BREACH', 'HOLD THE RELAY', 'OVERRUN', NAMES.bossFull],
     stageSubs: ['Eliminate all hostiles', 'Capture and hold the relay', 'Capture both relays', 'Defeat the ' + NAMES.bossTitle] }
 };
@@ -4315,7 +4366,7 @@ function removeZone(zn) { if (!zn) return; scene.remove(zn.g); for (const m of [
 function setZoneColor(zn, hex) { if (zn.col === hex) return; zn.col = hex; zn.ring.material.color.setHex(hex); zn.wall.material.color.setHex(hex); zn.beam.material.color.setHex(hex); }
 function pickZoneB(a) {
   for (let t = 0; t < 300; t++) {
-    const x = rand(-(ARENA - 5), ARENA - 5), z = rand(-(ARENA - 5), ARENA - 5);
+    const x = rand(WORLD.x0 + 5, WORLD.x1 - 5), z = rand(WORLD.z0 + 5, WORLD.z1 - 5);
     if (!pointFree(GRIDS.big, x, z) || Math.hypot(x - a.x, z - a.z) < 26) continue;
     if (!findPath(GRIDS.small, a.x, a.z, x, z)) continue;
     return { x, z };
@@ -4357,11 +4408,15 @@ function startStrike(id, tier, stage, resume) {
   const S = STRIKE;
   Object.assign(S, { strikeId: id, tier, enemyPower: Math.min(POWER_CAP, tierRec(tier)), stage, stageState: 'over', revives: TIER_REVIVES[tier], maxRevives: TIER_REVIVES[tier], retryUsed: false, deaths: 0, kills: 0, precisionKills: 0, zonesHeld: 0, pendG: 0, pendS: 0, ciphers: 0,
     zone: null, zoneIdx: 0, zoneCount: 0, startedAt: gt, elapsedBase: 0, frozenAt: null, res: null, bossSeen: false });
+  if (stage === 1 && !resume) LV.strikeGot = false;
   if (resume) { S.revives = Math.min(S.maxRevives + 4, resume.revives); S.deaths = resume.deaths; S.elapsedBase = resume.elapsedSec; }
-  setArenaForWave(1);
-  const sp = safeSpawns[safeSpawns.length - 1]; camera.position.set(sp.x, 1.6, sp.z); player.velocity.set(0, 0, 0);
+  if (PROCGEN) lvStartStrike(stage);
+  else {
+    setArenaForWave(1);
+    const sp = safeSpawns[safeSpawns.length - 1]; camera.position.set(sp.x, 1.6, sp.z); player.velocity.set(0, 0, 0);
+    S.cp = { x: sp.x, z: sp.z };
+  }
   player.dead = false; player.health = player.maxHealth; player.shield = player.maxShield; player.invulnUntil = gt + 3;
-  S.cp = { x: sp.x, z: sp.z };
   prog.lastMode = 'strike';
   document.body.classList.add('strike');
   paused = false;
@@ -4381,12 +4436,13 @@ function beginStage(n, restart) {
   removeZone(S.zone); S.zone = null; S.zoneIdx = 0; S.zoneCount = 0; S.goalLeft = 0; S.specials = []; spawnHook = null;
   spawnQueue = []; bossQueue = [];
   S.cp = { x: camera.position.x, z: camera.position.z };
+  if (LV.on) lvBeginStage(n, restart);
   if (!restart) showBanner('STAGE ' + n + '/' + def.stages + ' \u2022 ' + def.stageNames[n - 1], def.stageSubs[n - 1]);
   document.body.classList.toggle('strikeboss', n === def.stages);
   saveActive();
 }
 const stageOpts = t => {
-  const S = STRIKE, o = { strike: true };
+  const S = STRIKE, o = { strike: true }; if (LV.on) o.obj = true;
   if (S.zone && !S.zone.done) o.avoid = { x: S.zone.x, z: S.zone.z, r: 14 };
   if (t === 'boss') { o.hp = TUNING.strikeBossHp; o.shield = TUNING.strikeBossShield; }
   return o;
@@ -4397,6 +4453,7 @@ function zoneSpawnHook(e, t) {
 function shuffled(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 const mkList = c => { const l = []; for (const k of Object.keys(c)) for (let i = 0; i < c[k]; i++) l.push(k); return l; };
 function beginActive() {
+  if (LV.on) { lvBeginActive(); return; }
   const S = STRIKE; S.stageState = 'active'; S.activeT0 = gt; nextSpawnAt = gt;
   if (S.stage === 1) spawnQueue = shuffled(mkList({ dreg: 6, vandal: 3, captain: 1 }));
   else if (S.stage === 2 || S.stage === 3) {
@@ -4437,7 +4494,7 @@ function nextStage() { beginStage(STRIKE.stage + 1, false); }
 function restartStage(why) {
   const S = STRIKE;
   clearField(true); removeZone(S.zone); S.zone = null;
-  camera.position.set(S.cp.x, 1.6, S.cp.z); player.velocity.set(0, 0, 0);
+  camera.position.set(S.cp.x, 1.6 + groundAt(S.cp.x, S.cp.z), S.cp.z); player.velocity.set(0, 0, 0); if (LV.on) { LV.lastGood = null; LV.cur = -1; }
   player.dead = false; player.health = player.maxHealth; player.shield = player.maxShield; player.invulnUntil = gt + 4;
   showBanner(why || 'STAGE FAILED', 'Restarting stage');
   beginStage(S.stage, true);
@@ -4543,7 +4600,7 @@ function resultsLeave() { if (STRIKE.resChest && !STRIKE.res.chestOpened) openSt
 const CHEST_TABLE = [10, 45, 45, 0], BOSS_TABLE = [0, 24, 70, 6];
 function rollTable(t) { let r = Math.random() * 100; for (let i = 0; i < 4; i++) { if (r < t[i]) return i; r -= t[i]; } return 1; }
 function strikeChestPower(P, tier) { return Math.min(capSoft(), Math.max(100, Math.round(P + DROP_BONUS[tier || 1] + rand(-2, 4)))); }
-function rollStrikeItem(rarity, P, tier) { return generateLoot('chest', undefined, strikeChestPower(P, tier), rarity); }
+function rollStrikeItem(rarity, P, tier, src) { return strikeLootSwap(generateLoot('chest', undefined, strikeChestPower(P, tier), rarity), src || 'chest'); }
 // opens the 4-item chest (3 chest items + 1 boss item). forced = optional array of 4 rarities (debug).
 function openStrikeChest(forced) {
   const S = STRIKE; if (!S.res || S.res.chestOpened) return null;
@@ -4554,7 +4611,7 @@ function openStrikeChest(forced) {
   for (let i = 0; i < 4; i++) {
     const r = forced && forced[i] !== undefined ? forced[i] : rollTable(i < 3 ? CHEST_TABLE : BOSS_TABLE);
     rar.push(r);
-    const it = rollStrikeItem(r, P, S.tier);
+    const it = rollStrikeItem(r, P, S.tier, i < 3 ? 'chest' : 'boss');
     if (it.rarity === 3 && (collection[it.exoticPerk] || inventory.some(o => o.exoticPerk === it.exoticPerk))) {    // duplicate exotic: no item, +4 shards
       addMats(0, 4, 0); toast('Duplicate exotic \u2192 +4 ' + NAMES.cores, '#c58cff'); rows.push({ dup: true, it }); continue;
     }
@@ -4562,6 +4619,7 @@ function openStrikeChest(forced) {
     if (addItem(it) && !equip[it.slot]) equipItem(it);
     rows.push({ it, delta: before === null ? null : it.power - before });
   }
+  strikeClearedLoot();
   S.res.chest = { rarities: rar, items: rows.filter(r => !r.dup).map(r => r.it.id), dups: rows.filter(r => r.dup).length, power: rows.map(r => r.it.power) };
   const real = rows.filter(r => !r.dup);
   showChestPop(real);
@@ -4593,6 +4651,7 @@ $('prompt-btn').onclick = () => { if (inStrike() && STRIKE.stageState === 'resul
 function leaveStrike() {            // strike over (retreat / results exit / abandon): back to Mission Select with the Patrol still held
   const S = STRIKE;
   removeStrikeProps(); clearField(false);
+  if (LV.on) { levelDispose(); setArenaForWave(held ? held.wave : wave); camera.position.set(0, 1.6, 12); player.velocity.set(0, 0, 0); }
   player.dead = false; player.health = player.maxHealth; player.shield = player.maxShield;
   S.stageState = 'over'; document.body.classList.remove('strike', 'strikeboss'); $('objhud').style.display = 'none'; $('objhud')._d = 'none'; $('revives').style.display = 'none';
   $('boss-bar').style.display = 'none'; $('fail-overlay').style.display = 'none';
@@ -4602,13 +4661,26 @@ function leaveStrike() {            // strike over (retreat / results exit / aba
   openMissionSelect();
 }
 function abandonStrike() { prog.active = null; STRIKE.pendG = 0; STRIKE.pendS = 0; leaveStrike(); }
+let patrolToastPending = false;
+function patrolToastLater(ms) {
+  if (patrolToastPending || prog.patrolToastShown) return; patrolToastPending = true;
+  const tryShow = () => {
+    if (prog.patrolToastShown || activity !== ACTIVITIES.waves) { patrolToastPending = false; return; }
+    const menu = ['pause-overlay', 'settings-overlay', 'ms-overlay', 'inventory-overlay', 'shop-overlay', 'save-overlay'].some(id => { const e = document.getElementById(id); return e && e.style.display === 'flex'; });
+    if (paused || menu) { setTimeout(tryShow, 1000); return; }
+    patrolToastPending = false; prog.patrolToastShown = true; saveSoon();
+    toast('Patrol rewards are reduced \u2014 Strikes pay more.', '#ffd45a');
+  };
+  setTimeout(tryShow, ms);
+}
 function resumePatrol() {
   const h = held; held = null;
   removeStrikeProps(); $('fail-overlay').style.display = 'none'; document.body.classList.remove('strike', 'strikeboss');
   activity = ACTIVITIES.waves; STRIKE.stageState = 'over';
   clearField(false);
+  if (LV.on) { levelDispose(); camera.position.set(0, 1.6, 12); player.velocity.set(0, 0, 0); }
   paused = false;
-  if (!prog.patrolToastShown) { prog.patrolToastShown = true; setTimeout(() => { if (!paused) toast('Patrol rewards are reduced \u2014 Strikes pay more.', '#ffd45a'); }, (h && h.inter) ? 400 : 5500); }   // v9.1: a fresh wave shows the 3 s banner (+ the 3.1 s Arena toast): wait for both
+  if (!prog.patrolToastShown) patrolToastLater((h && h.inter) ? 400 : 5500);   // v9.1: a fresh wave shows the 3 s banner (+ the 3.1 s Arena toast): wait for both. v10 (N2): the flag is set only when the toast really shows; a pause / menu just delays it
   prog.lastMode = 'patrol';
   if (h && h.inter) { wave = h.inter.w; waveState = 'inter'; setArenaForWave(wave); enterIntermission(h.inter); }
   else { wave = h ? h.wave : wave; startWave(wave); }
@@ -4637,10 +4709,11 @@ function zoneComplete(zn) {
   sweep(500, 1000, 0.6, 'triangle', 0.1); playTone(880, 0.2, 'sine', 0.08);
   if (S.zoneIdx < S.zoneCount) {
     showBanner('RELAY 1 SECURED', 'Relay 2 is live');
-    const b = pickZoneB(zn); const nz = makeZone(b.x, b.z, 'RELAY 2/2'); S.zoneIdx++;
-    removeZone(zn); S.zone = nz; S.goalLeft = 4;
+    const b = LV.on ? lvZoneSpot(2) : pickZoneB(zn); const nz = makeZone(b.x, b.z, 'RELAY 2/2'); S.zoneIdx++;
+    removeZone(zn); S.zone = nz; S.goalLeft = 4; if (LV.on) lvZoneAdvance();
     return;
   }
+  if (LV.on) { lvObjectiveDone(); return; }
   showBanner('RELAY SECURED', 'Hostiles routed'); routAll();
   stageClear();
 }
@@ -4649,9 +4722,11 @@ function updateStrike(dt) {
   const S = STRIKE;
   routTick();
   if ((S.stageState === 'active' || S.stageState === 'clear') && gt - (S.lastActiveSave || 0) > 8) { S.lastActiveSave = gt; saveActive(); }   // keep the RESUME stub's elapsed time / revives fresh
-  if (S.stageState === 'intro') { if (gt >= S.stateT + 3) beginActive(); }
+  if (LV.on) lvTick(dt);
+  if (S.stageState === 'intro') { if (LV.on ? lvIntroTick() : gt >= S.stateT + 3) beginActive(); }
   else if (S.stageState === 'active') {
-    if (S.stage === 1) {
+    if (LV.on) lvActiveTick(dt);
+    else if (S.stage === 1) {
       pumpSpawns(8, stageOpts);
       if (!spawnQueue.length && enemies.length === 0) stageClear();
     } else if (S.stage === 2 || S.stage === 3) {
@@ -4671,7 +4746,7 @@ function updateStrike(dt) {
       else if (S.bossSeen) completeStrike();
     }
   }
-  else if (S.stageState === 'clear') { if (gt >= S.stateT + 8) { if (S.stage >= STRIKE_DEFS[S.strikeId].stages) completeStrike(); else nextStage(); } }
+  else if (S.stageState === 'clear') { if (LV.on) lvClearTick(); else if (gt >= S.stateT + 8) { if (S.stage >= STRIKE_DEFS[S.strikeId].stages) completeStrike(); else nextStage(); } }
   else if (S.stageState === 'complete') { if (gt >= S.stateT + 3.5) showResults(); }
   else if (S.stageState === 'results') resultsTick(dt);
 }
@@ -4691,6 +4766,7 @@ function updateStrikeHud() {
     else st = S.stageState === 'intro' ? 'GET READY' : '';
     if (S.stageState === 'active') { const left = S.limit - (gt - S.activeT0); tm = fmtTime(left); red = left < 30; }
   } else { title = 'DEFEAT ' + NAMES.bossFull; pct = 0; st = S.stageState === 'intro' ? 'GET READY' : ''; }
+  { const lh = LV.on && lvHudInfo(); if (lh) { title = lh.title; pct = lh.pct; st = lh.st; tm = lh.tm; red = lh.red; } }
   setText(elOT, title); setW(elOF, pct); setText(elOTm, tm); elOTm.className = red ? 'red' : ''; elOTm.style.color = red ? '#ff5a4a' : ''; setText(elOS, st);
   const pips = '\u25CF'.repeat(Math.max(0, S.revives)) + '\u25CB'.repeat(Math.max(0, S.maxRevives - S.revives)); setText(elRev, pips);
   elObj.style.display = (S.stage === 4 && S.stageState !== 'results' && S.stageState !== 'complete') ? 'block' : 'block';
@@ -4698,10 +4774,12 @@ function updateStrikeHud() {
   // zone marker
   const zn = S.zone;
   if (zn && S.stageState !== 'active') { zn.mk.style.display = 'none'; zn.mk._d = 'none'; }
-  if (zn && S.stageState === 'active') { const d = Math.hypot(camera.position.x - zn.x, camera.position.z - zn.z); placeMarker(zn.mk, zn.x, 3.5, zn.z, zn.label + ' ' + Math.round(d) + 'm', zn.done); }
+  if (zn && LV.on && (zn.done || !LV.flow || LV.flow.sub !== 'obj')) { zn.mk.style.display = 'none'; zn.mk._d = 'none'; }
+  else if (zn && S.stageState === 'active') { const d = Math.hypot(camera.position.x - zn.x, camera.position.z - zn.z); placeMarker(zn.mk, zn.x, 3.5, zn.z, zn.label + ' ' + Math.round(d) + 'm', zn.done); }
 }
 function strikeMinimap(g) {
   if (!inStrike()) return;
+  if (LV.on) lvMmExtras(g);
   const zn = STRIKE.zone; if (zn && STRIKE.stageState === 'active') { g.strokeStyle = zn.done ? '#66ff88' : zn.status === 'CAPTURING' ? '#66e6ff' : (zn.status === 'CONTESTED' || zn.status === 'OVERRUN') ? '#ffd45a' : '#ffffff'; g.lineWidth = 2; g.beginPath(); g.arc(mmX(zn.x), mmZ(zn.z), 6 * MMS, 0, 6.3); g.stroke(); g.fillStyle = g.strokeStyle; g.globalAlpha = 0.18; g.fill(); g.globalAlpha = 1; }
   const R = STRIKE.resChest, P = STRIKE.resPortal;
   if (STRIKE.stageState === 'results' && R && P) { if (!STRIKE.res.chestOpened) { g.fillStyle = '#ffd45a'; g.fillRect(mmX(R.x) - 5, mmZ(R.z) - 5, 10, 10); } g.fillStyle = '#66e6ff'; g.beginPath(); g.arc(mmX(P.x), mmZ(P.z), 5, 0, 6.3); g.fill(); }
@@ -4746,7 +4824,7 @@ function renderMissionSelect() {
     c.innerHTML = '<h3>' + def.name + '</h3><div class="mtag">STRIKE \u2022 ' + def.tag + '</div><div>' + def.stages + ' stages \u2022 ~' + def.estMin + ' min</div>' +
       '<div>Recommended power <b>' + E + '</b></div><span class="chip ' + chip.cls + '" id="ms-chip" data-cls="' + chip.cls + '">PWR ' + player.power + ' / REC ' + E + ' \u2022 ' + chip.label + '</span>' +
       '<div class="mul" id="ms-mul">you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '</div>' +
-      '<div>Rewards: 4 gear drops, \u25C6 450  \u2756 3</div><div>Best time: ' + (sp.bestTimeSec ? fmtTime(sp.bestTimeSec) : '--') + ' \u2022 Clears: ' + sp.clears + '</div>' +
+      '<div>Rewards: 4 gear drops, \u25C6 450  \u2756 3</div>' + (PROCGEN ? '<div class="drops">Drops: ' + STRIKE_DROPS_LINE + '</div>' : '') + '<div>Best time: ' + (sp.bestTimeSec ? fmtTime(sp.bestTimeSec) : '--') + ' \u2022 Clears: ' + sp.clears + '</div>' +
       (msConfirm && chip.cls === 'red' ? '<div class="warnline" id="ms-confirm">Underpowered: you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '. Launch anyway?</div>' : '') + '<div class="sp"></div>';
     const b = document.createElement('button'); b.className = 'go ' + (chip.cls === 'red' ? 'red' : ''); b.id = 'ms-launch'; b.type = 'button'; b.textContent = (msConfirm && chip.cls === 'red') ? 'LAUNCH ANYWAY' : 'LAUNCH';
     b.onclick = () => { if (chip.cls === 'red' && !msConfirm) { msConfirm = true; renderMissionSelect(); return; } prog.active = null; startStrike('fallen_outpost', 1, 1); };
@@ -4789,7 +4867,7 @@ if (/[?&](debug|qa)=1/.test(location.search)) {
   window.DFPS = {
     strike: {
       start: (id, tier, stage) => startStrike(id || 'fallen_outpost', tier || 1, stage || 1),
-      skipStage: () => { if (!inStrike()) return; if (S.stageState === 'intro') beginActive(); if (S.stageState !== 'active') return; if (S.stage === 4) { if (!enemies.some(e => e.userData.type === 'boss')) { bossQueue = []; spawnQueue = []; const be = spawnEnemy('boss', null, stageOpts('boss')); be.userData.spawnUntil = 0; } for (const e of enemies.slice()) { const u = e.userData; u.invuln = false; u.gateFloor = 0; killEnemy(e, {}); } if (!S.bossSeen) S.bossSeen = true; completeStrike(); } else { routAll(); if (S.zone) { S.zone.done = true; } stageClear(); } },
+      skipStage: () => { if (!inStrike()) return; if (LV.on) { lvSkip(); return; } if (S.stageState === 'intro') beginActive(); if (S.stageState !== 'active') return; if (S.stage === 4) { if (!enemies.some(e => e.userData.type === 'boss')) { bossQueue = []; spawnQueue = []; const be = spawnEnemy('boss', null, stageOpts('boss')); be.userData.spawnUntil = 0; } for (const e of enemies.slice()) { const u = e.userData; u.invuln = false; u.gateFloor = 0; killEnemy(e, {}); } if (!S.bossSeen) S.bossSeen = true; completeStrike(); } else { routAll(); if (S.zone) { S.zone.done = true; } stageClear(); } },
       setRevives: n => { S.revives = n | 0; if (S.revives > S.maxRevives) S.maxRevives = S.revives; if (inStrike()) saveActive(); },
       setZoneProgress: p => { if (S.zone && p >= 100 && !S.zone.done) { zoneComplete(S.zone); return; } if (S.zone) { S.zone.p = p; S.zone.floor = Math.max(0, Math.min(75, Math.floor(p / 25) * 25)); if (p < 100) S.zone.floor = Math.min(S.zone.floor, Math.floor(p / 25) * 25); } },
       forceFail: () => { if (inStrike()) missionFailed('Forced'); },
@@ -5025,6 +5103,1242 @@ function gpTick(dt) {
 }
 
 // =====================================================================
+//  PG-1a  PROCEDURAL LEVELS: Relay Yard tileset + seeded generator + validators (pure data; no THREE / DOM in this file)
+//  Cells are 4 m. Tile-local frame: x east, z south, origin = north-west corner. Rotation k = k x 90 deg clockwise.
+// =====================================================================
+const PG_CELL = 4, PG_WALL = 0.5, PG_BBOX = 96;
+const PG_OPP = { N: 'S', E: 'W', S: 'N', W: 'E' }, PG_NEXT = { N: 'E', E: 'S', S: 'W', W: 'N' };
+function pgHash(seed) { let h = 2166136261 >>> 0; const s = String(seed); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h >>> 0; }
+function pgRng(seed) { let a = (typeof seed === 'number' ? seed : pgHash(seed)) >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const pgShuffle = (a, r) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+
+// ---- authoring helpers: doors "N2" = standard door at cell index 2 on the north side, "E1w" = wide (2 cells) door starting at cell 1 on the east side
+const pgDoor = s => { const m = /^([NESW])(\d+)(w?)$/.exec(s); const at = +m[2], wc = m[3] ? 2 : 1; return { side: m[1], c0: at * PG_CELL, c1: (at + wc) * PG_CELL, kind: m[3] ? 'wide' : 'std' }; };
+// cover piece = [cx, cz, w, d, h, kind]
+const RY_TILES = {
+  ry_spawn: { name: 'Gatehouse', role: 'spawn', wc: 3, dc: 3, doors: ['S1'],
+    cover: { a: [[3, 3, 2, 2, 1.3, 'crate'], [9, 3, 2, 2, 1.3, 'crate'], [10.4, 8.4, 1.2, 3, 1.1, 'barrier']] },
+    m: { player: [6, 5.6], hall: [[6, 2.4]] } },
+  ry_cor_2: { name: 'Service Passage', role: 'corridor', wc: 1, dc: 2, doors: ['N0', 'S0'], cover: {}, m: { hall: [[2, 4]] } },
+  ry_cor_3: { name: 'Service Run', role: 'corridor', wc: 1, dc: 3, doors: ['N0', 'S0'], cover: {}, m: { hall: [[2, 3], [2, 9]] } },
+  ry_cor_l: { name: 'Dogleg', role: 'corridor', wc: 2, dc: 2, doors: ['N0', 'E1'], blocks: [[6, 2, 4, 4]], cover: {}, m: { hall: [[2, 2], [2, 6], [6, 6]] } },
+  ry_jct: { name: 'Switchyard', role: 'junction', wc: 3, dc: 3, doors: ['N1', 'E1', 'S1', 'W1'],
+    cover: { a: [[2.6, 2.6, 1.6, 1.6, 3, 'pillar'], [9.4, 9.4, 1.6, 1.6, 3, 'pillar']] }, m: { hall: [[9, 3], [3, 9]] } },
+  ry_cache: { name: 'Maintenance Bay', role: 'cache', wc: 3, dc: 3, doors: ['S1'],
+    cover: { a: [[1.6, 3.2, 1.2, 3.6, 2, 'rack'], [10.4, 3.2, 1.2, 3.6, 2, 'rack']] }, m: { chest: [6, 3.4], hall: [[6, 7]] } },
+  ry_arena_m: { name: 'Loading Court', role: 'arena', wc: 5, dc: 5, doors: ['N2', 'S2', 'E1w'],
+    cover: {
+      a: [[4.5, 4.5, 3.2, 2, 1.3, 'container'], [4.5, 15.5, 3.2, 2, 1.3, 'container'], [10, 10, 2.6, 2.6, 3, 'stack'], [15.5, 2.8, 2.6, 1.6, 1.2, 'crate'], [15.5, 17.2, 2.6, 1.6, 1.2, 'crate'], [6.5, 10, 1, 3.4, 1.1, 'barrier'], [13.6, 15.2, 2, 1, 1.1, 'barrier']],
+      b: [[3.6, 10, 1.2, 5, 1.2, 'barrier'], [7, 4, 2, 2, 1.3, 'crate'], [15, 2.6, 2.4, 1.6, 1.2, 'crate'], [6, 16, 2.4, 2.4, 1.3, 'crate'], [14, 16.5, 3, 2, 1.3, 'container'], [10, 10, 1.8, 1.8, 2.6, 'pillar']] },
+    m: { door: [[10, 2.4], [10, 17.6], [17.6, 8]], hall: [[7, 6.6], [13.5, 12.6]], idle: [[6.8, 7.4], [13.4, 7.2], [8, 13.8], [14.4, 13.4]] } },
+  ry_arena_w: { name: 'Relay Floor', role: 'arena', wc: 6, dc: 5, doors: ['N2', 'S4', 'E1w'],
+    cover: {
+      a: [[4.5, 4.5, 3.2, 2, 1.3, 'container'], [4.5, 15.5, 3.2, 2, 1.3, 'container'], [12, 10, 2.6, 2.6, 3, 'stack'], [8.5, 16.8, 2.4, 1.6, 1.2, 'crate'], [15.5, 3.2, 2.6, 1.6, 1.2, 'crate'], [21.5, 17, 2, 2.4, 1.3, 'crate'], [7, 10, 1, 3.4, 1.1, 'barrier'], [16.5, 10, 1, 3.4, 1.1, 'barrier']],
+      b: [[6, 4.4, 2, 2, 1.3, 'crate'], [3.6, 10, 1.2, 5, 1.2, 'barrier'], [6, 16, 2.4, 2.4, 1.3, 'crate'], [14.5, 6.2, 2.4, 2.4, 1.3, 'crate'], [12, 14.5, 3, 2, 1.3, 'container'], [22, 16.5, 2, 2.4, 1.3, 'crate'], [20.5, 2.6, 2.4, 1.6, 1.2, 'crate'], [12, 10, 1.8, 1.8, 2.6, 'pillar']] },
+    m: { door: [[10, 2.4], [18, 17.6], [21.6, 8]], hall: [[8.4, 6.8], [17, 6.4]], idle: [[7.6, 7.4], [16.6, 6.8], [9.6, 13.4], [17, 13.8]] } },
+  ry_obj_l: { name: 'Mast Base', role: 'objective', wc: 6, dc: 6, doors: ['N2', 'S3', 'E2w'], zone: [12, 12],
+    cover: {
+      a: [[4.2, 4.2, 3.2, 2, 1.3, 'container'], [19.8, 4, 3.2, 2, 1.3, 'container'], [4.2, 19.8, 3.2, 2, 1.3, 'container'], [19.8, 20.2, 3.2, 2, 1.3, 'container'], [3.4, 12, 1.2, 4, 1.1, 'barrier'], [8, 21, 2.4, 1.6, 1.2, 'crate']],
+      b: [[6, 3.4, 2, 2, 1.3, 'crate'], [17.5, 3.4, 2.4, 1.6, 1.2, 'crate'], [3.6, 8, 1.2, 3, 1.1, 'barrier'], [3.6, 17, 1.2, 3, 1.1, 'barrier'], [20.4, 20.4, 2.6, 2.6, 2.4, 'stack'], [9, 21.4, 3, 1.6, 1.2, 'crate']] },
+    m: { door: [[10, 2.4], [14, 21.6], [21.6, 12]], hall: [[6.4, 7.6], [17.6, 15.8]], idle: [[7.4, 7.2], [16.4, 16.8]] } },
+  ry_obj_g: { name: 'Gantry Deck', role: 'objective', wc: 6, dc: 5, doors: ['W1w', 'E1w', 'S3'], zone: [12, 10],
+    cover: {
+      a: [[12, 2.8, 4, 1.4, 1.2, 'barrier'], [4.2, 2.6, 3.2, 1.8, 1.3, 'container'], [19.8, 2.6, 3.2, 1.8, 1.3, 'container'], [4.2, 17.4, 3.2, 1.8, 1.3, 'container'], [19.8, 17.4, 3.2, 1.8, 1.3, 'container'], [8.6, 17.4, 2.4, 1.6, 1.2, 'crate']],
+      b: [[8, 3.2, 2, 2, 1.3, 'crate'], [16, 3.2, 2, 2, 1.3, 'crate'], [3.8, 17, 3, 2, 1.3, 'container'], [20.2, 17, 3, 2, 1.3, 'container'], [9, 17.6, 2.4, 1.6, 1.2, 'crate'], [12, 1.8, 1.2, 1.2, 2.4, 'pillar']] },
+    m: { door: [[3, 8], [21, 8], [14, 17.6]], hall: [[8, 6], [16, 14]], idle: [[8, 13.6], [16, 6]] } },
+  ry_mini_a: { name: 'Dispatch Hall', role: 'mini', wc: 5, dc: 6, doors: ['S1w', 'N2'],
+    cover: { a: [[5, 10.4, 3, 1.4, 1.3, 'barrier'], [15, 10.4, 3, 1.4, 1.3, 'barrier'], [4.2, 17, 2.4, 2.4, 2.2, 'stack'], [15.8, 17, 2.4, 2.4, 2.2, 'stack'], [5, 3.2, 2.4, 1.6, 1.2, 'crate'], [15, 3.2, 2.4, 1.6, 1.2, 'crate']] },
+    m: { mini: [10, 6.4], door: [[4.8, 7.6], [15.2, 7.6], [10, 13.4], [10, 17]], hall: [[10, 12.6], [10, 9.4]] } },
+  ry_ante: { name: 'Signal Annex', role: 'ante', wc: 4, dc: 3, doors: ['N1w', 'S2'],
+    cover: { a: [[2.6, 3.2, 2.4, 1.6, 1.1, 'console'], [13.4, 3.2, 2.4, 1.6, 1.1, 'console']] }, m: { player: [10, 8.6], hall: [[8, 6]] } }
+};
+const RY_ORDER = Object.keys(RY_TILES);
+
+// ---- rotation ----
+function pgRotPt(x, z, k, W, D) { for (let i = 0; i < k; i++) { const nx = D - z, nz = x; x = nx; z = nz; const t = W; W = D; D = t; } return [x, z]; }
+function pgRotDoor(d, k, W, D) {
+  for (let i = 0; i < k; i++) {
+    let side, c0, c1;
+    if (d.side === 'N') { side = 'E'; c0 = d.c0; c1 = d.c1; }
+    else if (d.side === 'E') { side = 'S'; c0 = D - d.c1; c1 = D - d.c0; }
+    else if (d.side === 'S') { side = 'W'; c0 = d.c0; c1 = d.c1; }
+    else { side = 'N'; c0 = D - d.c1; c1 = D - d.c0; }
+    d = { side, c0, c1, kind: d.kind }; const t = W; W = D; D = t;
+  }
+  return d;
+}
+// pre-compute the four rotations of every tile
+const PG_TILES = {};
+for (const id of RY_ORDER) {
+  const T = RY_TILES[id], W0 = T.wc * PG_CELL, D0 = T.dc * PG_CELL, doors0 = T.doors.map(pgDoor);
+  const rots = [];
+  for (let k = 0; k < 4; k++) {
+    const W = k & 1 ? D0 : W0, D = k & 1 ? W0 : D0;
+    const rp = (x, z) => pgRotPt(x, z, k, W0, D0);
+    const rr = c => { const [x, z] = rp(c[0], c[1]); return k & 1 ? [x, z, c[3], c[2]].concat(c.slice(4)) : [x, z].concat(c.slice(2)); };
+    const sets = {}; for (const s of Object.keys(T.cover)) sets[s] = T.cover[s].map(rr);
+    const m = {}; for (const key of Object.keys(T.m)) { const v = T.m[key]; m[key] = typeof v[0] === 'number' ? rp(v[0], v[1]) : v.map(p => rp(p[0], p[1])); }
+    rots.push({ W, D, doors: doors0.map(d => pgRotDoor(d, k, W0, D0)), sets, blocks: (T.blocks || []).map(rr), m, zone: T.zone ? rp(T.zone[0], T.zone[1]) : null });
+  }
+  PG_TILES[id] = { id, name: T.name, role: T.role, wc: T.wc, dc: T.dc, rots };
+}
+const PG_ROLE_TILES = { corridor: ['ry_cor_2', 'ry_cor_3', 'ry_cor_l'], junction: ['ry_jct'], arena: ['ry_arena_m', 'ry_arena_w'], objective: ['ry_obj_l'], objective2: ['ry_obj_g'], mini: ['ry_mini_a'], ante: ['ry_ante'], cache: ['ry_cache'], spawn: ['ry_spawn'] };
+
+// ---- beat list for Strike 1 (3 segments + antechamber): traverse -> objective -> mini-boss room ----
+function pgBeats(r) {
+  const T = () => pgShuffle([['corridor'], ['corridor', 'junction'], ['junction', 'corridor'], ['corridor', 'corridor']], r)[0];
+  const B = [{ role: 'spawn', seg: 1, kind: 'S' }];
+  for (let s = 1; s <= 3; s++) {
+    for (const ro of T()) B.push({ role: ro, seg: s, kind: 'T' });
+    if (s === 1) B.push({ role: 'arena', seg: s, kind: 'O' });
+    else B.push({ role: 'objective', seg: s, kind: 'O', zone: 1 });
+    if (s === 3) B.push({ role: 'objective2', seg: s, kind: 'O', zone: 2 });
+    B.push({ role: 'mini', seg: s, kind: 'M' });
+  }
+  B.push({ role: 'ante', seg: 4, kind: 'A' });
+  return B;
+}
+
+// ---- placement ----
+const pgOverlap = (a, b) => a.x < b.x + b.W - 0.01 && a.x + a.W > b.x + 0.01 && a.z < b.z + b.D - 0.01 && a.z + a.D > b.z + 0.01;
+function pgDoorWorld(room, d) { // world segment of a door on a placed room
+  if (d.side === 'N') return { side: 'N', a: room.x + d.c0, b: room.x + d.c1, at: room.z };
+  if (d.side === 'S') return { side: 'S', a: room.x + d.c0, b: room.x + d.c1, at: room.z + room.D };
+  if (d.side === 'W') return { side: 'W', a: room.z + d.c0, b: room.z + d.c1, at: room.x };
+  return { side: 'E', a: room.z + d.c0, b: room.z + d.c1, at: room.x + room.W };
+}
+function pgBBox(rooms) { let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9; for (const r of rooms) { x0 = Math.min(x0, r.x); z0 = Math.min(z0, r.z); x1 = Math.max(x1, r.x + r.W); z1 = Math.max(z1, r.z + r.D); } return { x0, z0, x1, z1 }; }
+// attach a new tile instance to door `pd` of placed room `prev`; returns candidate list (not yet checked against overlaps)
+function pgCandidates(prev, pd, tiles, r) {
+  const pw = pgDoorWorld(prev, pd), out = [];
+  for (const tid of pgShuffle(tiles, r)) {
+    for (const k of pgShuffle([0, 1, 2, 3], r)) {
+      const R = PG_TILES[tid].rots[k];
+      R.doors.forEach((ed, ei) => {
+        if (ed.side !== PG_OPP[pd.side] || ed.kind !== pd.kind || ed.c1 - ed.c0 !== pd.c1 - pd.c0) return;
+        let x, z;
+        if (pd.side === 'N') { x = pw.a - ed.c0; z = pw.at - R.D; }
+        else if (pd.side === 'S') { x = pw.a - ed.c0; z = pw.at; }
+        else if (pd.side === 'W') { x = pw.at - R.W; z = pw.a - ed.c0; }
+        else { x = pw.at; z = pw.a - ed.c0; }
+        out.push({ tid, k, ei, x, z, W: R.W, D: R.D });
+      });
+    }
+  }
+  return out;
+}
+function pgPlaceChain(beats, r, budget) {
+  const rooms = []; let nodes = 0;
+  const useCount = {}; 
+  const mk = (b, tid, k, x, z) => { const R = PG_TILES[tid].rots[k]; return { tile: tid, rot: k, x, z, W: R.W, D: R.D, role: PG_TILES[tid].role, brole: b.role, seg: b.seg, kind: b.kind, zone: b.zone || 0, used: {} }; };
+  function rec(i) {
+    if (i >= beats.length) return true;
+    if (++nodes > budget) return false;
+    const b = beats[i], prev = rooms[i - 1];
+    const tiles = b.role === 'objective2' ? PG_ROLE_TILES.objective2 : PG_ROLE_TILES[b.role];
+    const pds = []; PG_TILES[prev.tile].rots[prev.rot].doors.forEach((d, di) => { if (!prev.used[di]) pds.push([d, di]); });
+    for (const [pd, di] of pgShuffle(pds, r)) {
+      for (const c of pgCandidates(prev, pd, tiles, r)) {
+        if (nodes > budget) return false;
+        if (prev.tile === c.tid && PG_TILES[c.tid].role !== 'corridor') continue;
+        if (prev.tile === c.tid && c.tid !== 'ry_cor_l' && PG_TILES[c.tid].role === 'corridor' && r() < 0.8) continue;   // avoid same corridor twice in a row (mostly)
+        const nr = mk(b, c.tid, c.k, c.x, c.z);
+        if (rooms.some(o => pgOverlap(o, nr))) continue;
+        rooms.push(nr);
+        const bb = pgBBox(rooms);
+        if (bb.x1 - bb.x0 > PG_BBOX + 0.01 || bb.z1 - bb.z0 > PG_BBOX + 0.01) { rooms.pop(); continue; }
+        const cnt = useCount[c.tid] = (useCount[c.tid] || 0) + 1;
+        if (cnt > 2 && PG_TILES[c.tid].role !== 'corridor' && PG_TILES[c.tid].role !== 'junction' && PG_TILES[c.tid].role !== 'mini') { useCount[c.tid]--; rooms.pop(); continue; }
+        prev.used[di] = (i) + 'x'; nr.used[c.ei] = 'in'; nr.entry = c.ei; nr.parent = i - 1; nr.parentDoor = di;
+        if (rec(i + 1)) return true;
+        delete prev.used[di]; useCount[c.tid]--; rooms.pop();
+        if (nodes > budget) return false;
+      }
+    }
+    return false;
+  }
+  const b0 = beats[0], R0 = PG_TILES.ry_spawn.rots[pgShuffle([0, 1, 2, 3], r)[0]];
+  const k0 = PG_TILES.ry_spawn.rots.indexOf(R0);
+  rooms.push(mk(b0, 'ry_spawn', k0, 0, 0)); useCount.ry_spawn = 1;
+  return rec(1) ? rooms : null;
+}
+function pgAddCaches(rooms, r) {
+  const want = 2, made = [];
+  const hosts = pgShuffle(rooms.map((_, i) => i).filter(i => { const t = rooms[i].role; return t !== 'spawn' && t !== 'mini' && t !== 'ante'; }), r);
+  for (const hi of hosts) {
+    if (made.length >= want) break;
+    const h = rooms[hi]; if (h.cacheOf !== undefined) continue;
+    const R = PG_TILES[h.tile].rots[h.rot];
+    for (const [di, d] of pgShuffle(R.doors.map((d, di) => [di, d]), r)) {
+      if (h.used[di] || d.kind !== 'std') continue;
+      let ok = false;
+      for (const c of pgCandidates(h, d, PG_ROLE_TILES.cache, r)) {
+        const nr = { tile: c.tid, rot: c.k, x: c.x, z: c.z, W: c.W, D: c.D, role: 'cache', brole: 'cache', seg: h.seg, kind: 'C', zone: 0, used: {}, branch: true, parent: hi, parentDoor: di, entry: c.ei };
+        if (rooms.some(o => pgOverlap(o, nr))) continue;
+        const bb = pgBBox(rooms.concat([nr])); if (bb.x1 - bb.x0 > PG_BBOX + 0.01 || bb.z1 - bb.z0 > PG_BBOX + 0.01) continue;
+        h.used[di] = 'cache'; nr.used[c.ei] = 'in'; rooms.push(nr); made.push(nr); ok = true; break;
+      }
+      if (ok) break;
+    }
+  }
+  return made.length;
+}
+// turn the placed rooms into a layout with doors, segments and a centred world frame
+function pgFinish(rooms, seed, how) {
+  const bb = pgBBox(rooms), sx = -Math.round((bb.x0 + bb.x1) / 2 / PG_CELL) * PG_CELL, sz = -Math.round((bb.z0 + bb.z1) / 2 / PG_CELL) * PG_CELL;
+  rooms.forEach((rm, i) => { rm.rx = rm.x; rm.rz = rm.z; rm.x += sx; rm.z += sz; rm.i = i; rm.cx = rm.x + rm.W / 2; rm.cz = rm.z + rm.D / 2; });
+  const doors = [];
+  rooms.forEach((rm, i) => {
+    if (rm.parent === undefined) return;
+    const p = rooms[rm.parent], pd = PG_TILES[p.tile].rots[p.rot].doors[rm.parentDoor], w = pgDoorWorld(p, pd);
+    const horiz = w.side === 'N' || w.side === 'S';
+    const door = { i: doors.length, a: rm.parent, b: i, side: w.side, horiz, kind: pd.kind, width: w.b - w.a, cx: horiz ? (w.a + w.b) / 2 : w.at, cz: horiz ? w.at : (w.a + w.b) / 2, lock: 'none', seg: p.seg, pdi: rm.parentDoor, bdi: rm.entry };
+    if (rm.kind === 'M') door.lock = 'gate';                              // wide door into a mini-boss room: opens when the objective is complete
+    if (p.kind === 'M') { door.lock = 'exit'; door.k = p.seg; }            // mini-boss room's exit door D_k: opens when the mini-boss dies
+    doors.push(door);
+  });
+  return { seed, how, rooms, doors, bbox: { x0: bb.x0 + sx, x1: bb.x1 + sx, z0: bb.z0 + sz, z1: bb.z1 + sz } };
+}
+// the hand-listed fallback chain (found once by the generator and frozen; used if every attempt fails). [tile, rot, x, z] with the first tile at the origin.
+const PG_FALLBACK = [
+  { t: 'ry_spawn', k: 3, x: 0, z: 0, p: undefined, pd: undefined, e: undefined, seg: 1, kind: 'S', brole: 'spawn' },
+  { t: 'ry_cor_3', k: 1, x: 12, z: 4, p: 0, pd: 0, e: 1, seg: 1, kind: 'T', brole: 'corridor' },
+  { t: 'ry_arena_m', k: 3, x: 24, z: -4, p: 1, pd: 0, e: 0, seg: 1, kind: 'O', brole: 'arena' },
+  { t: 'ry_mini_a', k: 0, x: 24, z: -28, p: 2, pd: 2, e: 0, seg: 1, kind: 'M', brole: 'mini' },
+  { t: 'ry_cor_3', k: 2, x: 32, z: -40, p: 3, pd: 1, e: 0, seg: 2, kind: 'T', brole: 'corridor' },
+  { t: 'ry_obj_l', k: 0, x: 20, z: -64, p: 4, pd: 1, e: 1, seg: 2, kind: 'O', brole: 'objective', zone: 1 },
+  { t: 'ry_mini_a', k: 1, x: 44, z: -60, p: 5, pd: 2, e: 0, seg: 2, kind: 'M', brole: 'mini' },
+  { t: 'ry_cor_2', k: 3, x: 68, z: -52, p: 6, pd: 1, e: 0, seg: 3, kind: 'T', brole: 'corridor' },
+  { t: 'ry_jct', k: 3, x: 76, z: -56, p: 7, pd: 1, e: 0, seg: 3, kind: 'T', brole: 'junction' },
+  { t: 'ry_obj_l', k: 2, x: 72, z: -44, p: 8, pd: 3, e: 1, seg: 3, kind: 'O', brole: 'objective', zone: 1 },
+  { t: 'ry_obj_g', k: 0, x: 48, z: -40, p: 9, pd: 2, e: 1, seg: 3, kind: 'O', brole: 'objective2', zone: 2 },
+  { t: 'ry_mini_a', k: 0, x: 52, z: -20, p: 10, pd: 2, e: 1, seg: 3, kind: 'M', brole: 'mini' },
+  { t: 'ry_ante', k: 0, x: 52, z: 4, p: 11, pd: 0, e: 0, seg: 4, kind: 'A', brole: 'ante' },
+  { t: 'ry_cache', k: 0, x: 24, z: -76, p: 5, pd: 0, e: 0, seg: 2, kind: 'C', brole: 'cache', branch: true },
+  { t: 'ry_cache', k: 0, x: 76, z: -68, p: 8, pd: 1, e: 0, seg: 3, kind: 'C', brole: 'cache', branch: true }
+];
+function genLevel(seed, opt) {
+  opt = opt || {}; const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const r = pgRng(seed), tries = opt.tries === undefined ? 10 : opt.tries;
+  for (let a = 0; a < tries; a++) {
+    const beats = pgBeats(r), rooms = pgPlaceChain(beats, r, opt.budget || 7000);
+    if (!rooms) continue;
+    if (pgAddCaches(rooms, r) < 2) continue;   // a layout needs both caches
+    const L = pgFinish(rooms, seed, 'gen'); L.attempts = a + 1; L.ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
+    const v = pgValidate(L); if (v.ok) return L;
+  }
+  const L = pgFromFallback(seed); L.attempts = tries; L.ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0; return L;
+}
+function pgFromFallback(seed) {
+  const F = PG_FALLBACK; const rooms = F.map((f, i) => { const b = { role: PG_TILES[f.t].role, seg: f.seg, kind: f.kind, zone: f.zone || 0 }; const R = PG_TILES[f.t].rots[f.k]; return { tile: f.t, rot: f.k, x: f.x, z: f.z, W: R.W, D: R.D, role: b.role, brole: f.brole, seg: f.seg, kind: f.kind, zone: f.zone || 0, used: {}, branch: !!f.branch, parent: f.p, parentDoor: f.pd, entry: f.e }; });
+  const L = pgFinish(rooms, seed, 'fallback'); return L;
+}
+// ---- validation (V1-V6: structure; V7-V10 are checked on the built world in p8b) ----
+function pgValidate(L) {
+  const err = [], R = L.rooms;
+  const main = R.filter(r => !r.branch);
+  // V2 no overlaps
+  for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) if (pgOverlap(R[i], R[j])) err.push('V2 overlap ' + i + ',' + j);
+  // V3 each door joins two placed doors that coincide
+  for (const d of L.doors) {
+    const a = R[d.a], b = R[d.b], da = PG_TILES[a.tile].rots[a.rot].doors[d.pdi], db = PG_TILES[b.tile].rots[b.rot].doors[d.bdi];
+    if (!da || !db) { err.push('V3 missing door'); continue; }
+    const wa = pgDoorWorld(a, da), wb = pgDoorWorld(b, db);
+    if (wa.side !== PG_OPP[wb.side] || Math.abs(wa.a - wb.a) > 0.01 || Math.abs(wa.b - wb.b) > 0.01 || Math.abs(wa.at - wb.at) > 0.01 || da.kind !== db.kind) err.push('V3 door mismatch ' + d.i);
+  }
+  // V1 connectivity from the spawn room
+  const seen = new Set([0]), q = [0];
+  while (q.length) { const c = q.shift(); for (const d of L.doors) { const o = d.a === c ? d.b : d.b === c ? d.a : -1; if (o >= 0 && !seen.has(o)) { seen.add(o); q.push(o); } } }
+  if (seen.size !== R.length) err.push('V1 disconnected ' + seen.size + '/' + R.length);
+  // V4 main path: 3 mini-boss rooms with 3 locked exits, 3 gates, ante last, size
+  const nMini = R.filter(r => r.kind === 'M').length, nExit = L.doors.filter(d => d.lock === 'exit').length, nGate = L.doors.filter(d => d.lock === 'gate').length;
+  if (nMini !== 3 || nExit !== 3 || nGate !== 3) err.push('V4 beats ' + nMini + '/' + nExit + '/' + nGate);
+  if (main[main.length - 1].role !== 'ante') err.push('V4 ante not last');
+  if (main.length < 13 || R.length - main.length > 2) err.push('V4 room count ' + main.length);
+  // V5 bounds
+  const bb = L.bbox; if (bb.x1 - bb.x0 > PG_BBOX + 0.01 || bb.z1 - bb.z0 > PG_BBOX + 0.01) err.push('V5 bbox');
+  // V6 every room has its markers (arena: >=2 idle + >=3 door markers; mini: mini marker; objective: zone)
+  for (const r of R) { const Rr = PG_TILES[r.tile].rots[r.rot]; if (r.role === 'arena' && (!Rr.m.idle || Rr.m.idle.length < 2 || !Rr.m.door || Rr.m.door.length < 3)) err.push('V6 arena markers'); if (r.role === 'mini' && !Rr.m.mini) err.push('V6 mini'); if (r.role === 'objective' && !Rr.zone) err.push('V6 zone'); }
+  // footprint / sizes
+  L.area = R.reduce((s, r) => s + r.W * r.D, 0);
+  return { ok: err.length === 0, err };
+}
+// ---- world data for a layout: wall / cover / lock boxes, markers, room lookup. Pure (used by tests and by the builder). ----
+// picks each room's cover set from the layout seed so the same seed gives the same level
+function pgWorldData(L) {
+  const r = pgRng('cov' + L.seed), boxes = [], rooms = [];
+  for (const rm of L.rooms) {
+    const T = PG_TILES[rm.tile], R = T.rots[rm.rot], setKeys = Object.keys(R.sets), set0 = setKeys.length ? setKeys[Math.floor(r() * setKeys.length)] : null; let set = set0;
+    if (rm.forceSet && R.sets[rm.forceSet]) set = rm.forceSet; rm.set = set;
+    const info = { i: rm.i, x0: rm.x, z0: rm.z, x1: rm.x + rm.W, z1: rm.z + rm.D, boxes: [], cover: [], doors: [], m: {}, zone: null };
+    const pushBox = (kind, x0, z0, x1, z1, h, extra) => { const b = Object.assign({ kind, x0, z0, x1, z1, y0: 0, y1: h, room: rm.i }, extra || {}); boxes.push(b); info.boxes.push(b); return b; };
+    // matched doors on this room (gap in the shell)
+    const gaps = { N: [], E: [], S: [], W: [] };
+    for (const d of L.doors) {
+      if (d.a === rm.i) { const dd = R.doors[d.pdi]; gaps[dd.side].push([dd.c0, dd.c1]); info.doors.push(d.i); }
+      else if (d.b === rm.i) { const dd = R.doors[d.bdi]; gaps[dd.side].push([dd.c0, dd.c1]); info.doors.push(d.i); }
+    }
+    // the ante's wide north door and any other 'portal' gap is handled by the builder (rm.portal)
+    for (const d of (rm.portalDoors || [])) gaps[d.side].push([d.c0, d.c1]);
+    const H = 7, t = PG_WALL;
+    const run = (side, len, mk) => { const g = gaps[side].slice().sort((p, q) => p[0] - q[0]); let c = 0; for (const [a, b] of g) { if (a > c + 0.01) mk(c, a); c = Math.max(c, b); } if (c < len - 0.01) mk(c, len); };
+    run('N', rm.W, (a, b) => pushBox('wall', rm.x + a, rm.z, rm.x + b, rm.z + t, H));
+    run('S', rm.W, (a, b) => pushBox('wall', rm.x + a, rm.z + rm.D - t, rm.x + b, rm.z + rm.D, H));
+    run('W', rm.D, (a, b) => pushBox('wall', rm.x, rm.z + a, rm.x + t, rm.z + b, H));
+    run('E', rm.D, (a, b) => pushBox('wall', rm.x + rm.W - t, rm.z + a, rm.x + rm.W, rm.z + b, H));
+    for (const b of R.blocks) pushBox('block', rm.x + b[0] - b[2] / 2, rm.z + b[1] - b[3] / 2, rm.x + b[0] + b[2] / 2, rm.z + b[1] + b[3] / 2, H);
+    if (set) for (const c of R.sets[set]) { const bx = pushBox('cover', rm.x + c[0] - c[2] / 2, rm.z + c[1] - c[3] / 2, rm.x + c[0] + c[2] / 2, rm.z + c[1] + c[3] / 2, c[4], { ck: c[5] }); info.cover.push(bx); }
+    const wm = p => [rm.x + p[0], rm.z + p[1]];
+    for (const key of Object.keys(R.m)) { const v = R.m[key]; info.m[key] = typeof v[0] === 'number' ? wm(v) : v.map(wm); }
+    if (R.zone) info.zone = wm(R.zone);
+    rooms.push(info);
+  }
+  return { boxes, rooms };
+}
+
+// =====================================================================
+//  PG-1 (v10) LEVEL BUILDER + RUNTIME: merged per-room geometry, doors/locks, room culling, minimap, spawn picking
+//  Pure data (tiles, generator, validators) lives in p8a.js; the segment flow + Bulwark mini-boss in p8e.js; the boss arena in p8c.js.
+// =====================================================================
+const PGC = {   // Relay Yard palette
+  floorA: 0x3d4654, floorB: 0x363f4c, wall: 0x5e6a78, wallLow: 0x434d5a, trim: 0x7a8898, header: 0x4c5764,
+  container: [0x8a4b3a, 0x3d6285, 0x4f7358, 0x8b7a58], crate: 0x8b7a58, crate2: 0x6f6a5c, barrier: 0xa9afb6, pillar: 0x6c7886, console: 0x465362, rack: 0x56606c,
+  cyan: 0x66ddff, amber: 0xffa040, red: 0xff5a3a, dim: 0x1f5f70
+};
+function hexRGB(h) { return [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]; }
+class BoxBatch {
+  constructor() { this.p = []; this.n = []; this.c = []; this.i = []; this.v = 0; }
+  face(a, b, c, d, nrm, rgb, sa, sb) {   // a,b = one edge (shade sa at a/d? -> sa for the 'low' pair a,d ; sb for 'high' pair b,c)
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+    const flip = (cx * nrm[0] + cy * nrm[1] + cz * nrm[2]) < 0;
+    const vs = [a, b, c, d], sh = [sa, sb, sb, sa];
+    for (let k = 0; k < 4; k++) { this.p.push(vs[k][0], vs[k][1], vs[k][2]); this.n.push(nrm[0], nrm[1], nrm[2]); this.c.push(rgb[0] * sh[k], rgb[1] * sh[k], rgb[2] * sh[k]); }
+    const o = this.v; if (!flip) this.i.push(o, o + 1, o + 2, o, o + 2, o + 3); else this.i.push(o, o + 2, o + 1, o, o + 3, o + 2);
+    this.v += 4;
+  }
+  box(x0, y0, z0, x1, y1, z1, hex, v, flat) {   // 5 faces (no bottom); v = brightness multiplier; flat = no vertical gradient
+    const rgb = hexRGB(hex), m = v === undefined ? 1 : v, lo = flat ? 1 : 0.7;
+    this.face([x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [0, 1, 0], rgb, m, m);
+    this.face([x0, y0, z1], [x0, y1, z1], [x1, y1, z1], [x1, y0, z1], [0, 0, 1], rgb, 0.9 * m * lo, 0.9 * m);
+    this.face([x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z0], [0, 0, -1], rgb, 0.9 * m * lo, 0.9 * m);
+    this.face([x1, y0, z1], [x1, y1, z1], [x1, y1, z0], [x1, y0, z0], [1, 0, 0], rgb, 0.78 * m * lo, 0.78 * m);
+    this.face([x0, y0, z0], [x0, y1, z0], [x0, y1, z1], [x0, y0, z1], [-1, 0, 0], rgb, 0.78 * m * lo, 0.78 * m);
+  }
+  quad(x0, z0, x1, z1, y, hex, v) { const rgb = hexRGB(hex), m = v === undefined ? 1 : v; this.face([x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0], [0, 1, 0], rgb, m, m); }
+  geo() {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
+    g.setIndex(this.v > 65000 ? new THREE.Uint32BufferAttribute(this.i, 1) : new THREE.Uint16BufferAttribute(this.i, 1));
+    g.computeBoundingSphere(); g.computeBoundingBox(); return g;
+  }
+  get empty() { return this.v === 0; }
+}
+const pgVar = (a, b) => { let h = Math.imul((a * 73856093) ^ (b * 19349663), 0x5bd1e995); h ^= h >>> 15; return (h & 255) / 255; };   // stable per-position variation
+
+Object.assign(LV, { L: null, wd: null, rooms: [], doors: [], group: null, geos: [], mats: [], cur: -1, visited: new Set(), vis: null, portal: null, mast: null, fl: null, seedStr: '', buildMs: 0, lastGood: null, culled: true });
+
+function lvCoverDetail(lit, glow, c) {   // one intentional cover piece (collider = c's footprint/height); returns nothing, adds visuals only
+  const x0 = c.x0, x1 = c.x1, z0 = c.z0, z1 = c.z1, h = c.y1, k = c.ck || 'crate', v = 0.94 + pgVar(Math.round(x0 * 3), Math.round(z0 * 3)) * 0.12;
+  if (k === 'container') { const col = PGC.container[Math.floor(pgVar(Math.round(x0), Math.round(z0)) * 4) % 4]; lit.box(x0, 0, z0, x1, h, z1, col, v); lit.box(x0 + 0.1, h, z0 + 0.1, x1 - 0.1, h + 0.08, z1 - 0.1, col, v * 1.18, true); const w = x1 - x0 > z1 - z0; for (let i = 1; i < 4; i++) { const t = i / 4; if (w) lit.box(x0 + (x1 - x0) * t - 0.04, 0.05, z0 - 0.03, x0 + (x1 - x0) * t + 0.04, h - 0.05, z1 + 0.03, col, v * 0.8, true); else lit.box(x0 - 0.03, 0.05, z0 + (z1 - z0) * t - 0.04, x1 + 0.03, h - 0.05, z0 + (z1 - z0) * t + 0.04, col, v * 0.8, true); } }
+  else if (k === 'barrier') { lit.box(x0, 0, z0, x1, h, z1, PGC.barrier, v); const w = x1 - x0 > z1 - z0; if (w) glow.box(x0 - 0.02, h - 0.28, z0 - 0.02, x1 + 0.02, h - 0.12, z1 + 0.02, PGC.amber, 1, true); else glow.box(x0 - 0.02, h - 0.28, z0 - 0.02, x1 + 0.02, h - 0.12, z1 + 0.02, PGC.amber, 1, true); }
+  else if (k === 'pillar') { lit.box(x0, 0, z0, x1, h, z1, PGC.pillar, v); lit.box(x0 - 0.08, h - 0.2, z0 - 0.08, x1 + 0.08, h, z1 + 0.08, PGC.trim, 1, true); glow.box(x0 - 0.03, h - 0.5, z0 - 0.03, x1 + 0.03, h - 0.36, z1 + 0.03, PGC.cyan, 1, true); }
+  else if (k === 'console') { lit.box(x0, 0, z0, x1, h, z1, PGC.console, v); glow.box(x0 + 0.15, h + 0.01, z0 + 0.15, x1 - 0.15, h + 0.05, z1 - 0.15, PGC.cyan, 0.8, true); }
+  else if (k === 'rack') { lit.box(x0, 0, z0, x1, h, z1, PGC.rack, v); for (let i = 1; i < 3; i++) lit.box(x0 - 0.03, h * i / 3 - 0.04, z0 - 0.03, x1 + 0.03, h * i / 3 + 0.04, z1 + 0.03, PGC.crate, v * 0.9, true); }
+  else { const col = (Math.round(x0 + z0) & 1) ? PGC.crate : PGC.crate2; lit.box(x0, 0, z0, x1, h, z1, col, v); lit.box(x0 - 0.03, h * 0.45, z0 - 0.03, x1 + 0.03, h * 0.55, z1 + 0.03, col, v * 0.72, true); }
+}
+function lvBuildRoomMeshes(rm, info, L) {
+  const lit = new BoxBatch(), glow = new BoxBatch(), role = rm.role, W = rm.W, D = rm.D;
+  // floor: 4 m checker cells
+  for (let cx = 0; cx < W / PG_CELL; cx++) for (let cz = 0; cz < D / PG_CELL; cz++) lit.quad(rm.x + cx * PG_CELL, rm.z + cz * PG_CELL, rm.x + (cx + 1) * PG_CELL, rm.z + (cz + 1) * PG_CELL, 0, ((cx + cz) & 1) ? PGC.floorB : PGC.floorA, 1);
+  // role floor marks (glow, dim): arena/objective border, mini-boss dais, spawn pad
+  const edge = role === 'objective' || role === 'objective2' || role === 'arena' ? PGC.cyan : role === 'mini' ? PGC.red : role === 'ante' ? PGC.amber : PGC.dim;
+  const ew = 0.18, ix = 1.2;
+  if (role === 'arena' || role === 'objective' || role === 'objective2' || role === 'mini' || role === 'ante') {
+    for (const [a, b, c, d] of [[ix, ix, W - ix, ix + ew], [ix, D - ix - ew, W - ix, D - ix], [ix, ix, ix + ew, D - ix], [W - ix - ew, ix, W - ix, D - ix]]) glow.quad(rm.x + a, rm.z + b, rm.x + c, rm.z + d, 0.02, edge, 0.85);
+  }
+  // walls (colliders from pgWorldData) + header strips + base stripe
+  for (const b of info.boxes) {
+    if (b.kind === 'wall') {
+      lit.box(b.x0, 0, b.z0, b.x1, b.y1, b.z1, PGC.wall, 0.92 + pgVar(Math.round(b.x0), Math.round(b.z0)) * 0.1);
+      lit.box(b.x0 - 0.06, b.y1 - 0.35, b.z0 - 0.06, b.x1 + 0.06, b.y1, b.z1 + 0.06, PGC.trim, 1, true);
+      lit.box(b.x0 - 0.02, 0, b.z0 - 0.02, b.x1 + 0.02, 0.9, b.z1 + 0.02, PGC.wallLow, 1, true);
+      const horiz = (b.x1 - b.x0) >= (b.z1 - b.z0);   // stripe on the room-facing side
+      const col = role === 'mini' ? PGC.red : (role === 'arena' || role === 'objective' || role === 'objective2') ? PGC.cyan : PGC.amber;
+      if (horiz) { const north = Math.abs(b.z0 - rm.z) < 0.2, z = north ? b.z1 : b.z0 - 0.04; glow.box(b.x0, 1.0, z, b.x1, 1.14, z + 0.04, col, 0.9, true); }
+      else { const west = Math.abs(b.x0 - rm.x) < 0.2, x = west ? b.x1 : b.x0 - 0.04; glow.box(x, 1.0, b.z0, x + 0.04, 1.14, b.z1, col, 0.9, true); }
+    } else if (b.kind === 'block') { lit.box(b.x0, 0, b.z0, b.x1, b.y1, b.z1, PGC.wallLow, 1); lit.box(b.x0 - 0.06, b.y1 - 0.3, b.z0 - 0.06, b.x1 + 0.06, b.y1, b.z1 + 0.06, PGC.trim, 1, true); }
+    else if (b.kind === 'cover') lvCoverDetail(lit, glow, b);
+  }
+  // door frames, headers, threshold strips (door objects are created once per door by the room on its 'a' side)
+  for (const di of info.doors) {
+    const d = L.doors[di]; if (d.a !== rm.i) continue;
+    const hw = d.width / 2, col = d.lock === 'none' ? PGC.cyan : PGC.amber;
+    if (d.horiz) {
+      lit.box(d.cx - hw, 3.9, d.cz - 0.55, d.cx + hw, 7, d.cz + 0.55, PGC.header, 1);
+      glow.box(d.cx - hw - 0.3, 0, d.cz - 0.6, d.cx - hw, 3.9, d.cz + 0.6, col, 1, true); glow.box(d.cx + hw, 0, d.cz - 0.6, d.cx + hw + 0.3, 3.9, d.cz + 0.6, col, 1, true); glow.box(d.cx - hw - 0.3, 3.9, d.cz - 0.6, d.cx + hw + 0.3, 4.2, d.cz + 0.6, col, 1, true);
+      glow.quad(d.cx - hw, d.cz - 0.5, d.cx + hw, d.cz + 0.5, 0.02, d.lock === 'none' ? PGC.dim : 0x7a4a14, 1);
+    } else {
+      lit.box(d.cx - 0.55, 3.9, d.cz - hw, d.cx + 0.55, 7, d.cz + hw, PGC.header, 1);
+      glow.box(d.cx - 0.6, 0, d.cz - hw - 0.3, d.cx + 0.6, 3.9, d.cz - hw, col, 1, true); glow.box(d.cx - 0.6, 0, d.cz + hw, d.cx + 0.6, 3.9, d.cz + hw + 0.3, col, 1, true); glow.box(d.cx - 0.6, 3.9, d.cz - hw - 0.3, d.cx + 0.6, 4.2, d.cz + hw + 0.3, col, 1, true);
+      glow.quad(d.cx - 0.5, d.cz - hw, d.cx + 0.5, d.cz + hw, 0.02, d.lock === 'none' ? PGC.dim : 0x7a4a14, 1);
+    }
+  }
+  const out = [];
+  for (const [bt, mat] of [[lit, LV.matLit], [glow, LV.matGlow]]) { if (bt.empty) continue; const g = bt.geo(); LV.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; m.matrixAutoUpdate = false; LV.group.add(m); out.push(m); }
+  return out;
+}
+// door runtime objects + lock boxes
+function lvMakeDoor(d, L) {
+  const o = { i: d.i, a: d.a, b: d.b, cx: d.cx, cz: d.cz, horiz: d.horiz, width: d.width, lock: d.lock, k: d.k, side: d.side, locked: d.lock !== 'none', box: null, panel: null, passed: false };
+  const hw = d.width / 2, t = 0.6;
+  o.rect = d.horiz ? [d.cx - hw, d.cx + hw, d.cz - t, d.cz + t] : [d.cx - t, d.cx + t, d.cz - hw, d.cz + hw];
+  o.box = { kind: 'lock', x0: o.rect[0], x1: o.rect[1], z0: o.rect[2], z1: o.rect[3], y0: 0, y1: 4.2, door: d.i };
+  const p = new THREE.Mesh(LV.panelGeo(d.width), LV.matPanel); p.position.set(d.cx, 1.95, d.cz); if (!d.horiz) p.rotation.y = Math.PI / 2; p.raycast = noopRaycast; LV.group.add(p); o.panel = p; p.visible = o.locked;
+  // direction a -> b (unit) used by the "passed" test
+  const A = L.rooms[d.a], B = L.rooms[d.b]; let dx = B.cx - A.cx, dz = B.cz - A.cz; if (d.horiz) { dx = 0; dz = Math.sign(dz) || 1; } else { dz = 0; dx = Math.sign(dx) || 1; } o.dir = [dx, dz];
+  if (o.locked) boxes.push(o.box);
+  return o;
+}
+function lvNavPatch(r, pad) {   // recompute the nav cells around a rectangle (a door opened / closed)
+  const gs = [[GRIDS.small, 0.7], [GRIDS.big, 1.45]];
+  for (const [g, infl] of gs) {
+    const ix0 = Math.max(0, Math.floor(r[0] - infl - 1 - G_OX)), ix1 = Math.min(G_W - 1, Math.ceil(r[1] + infl + 1 - G_OX));
+    const iz0 = Math.max(0, Math.floor(r[2] - infl - 1 - G_OZ)), iz1 = Math.min(G_H - 1, Math.ceil(r[3] + infl + 1 - G_OZ));
+    for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
+      const cx = G_OX + ix + 0.5, cz = G_OZ + iz + 0.5; let b = 0;
+      for (const o of boxes) { if (cx > o.x0 - infl && cx < o.x1 + infl && cz > o.z0 - infl && cz < o.z1 + infl) { b = 1; break; } }
+      g.blocked[iz * G_W + ix] = b;
+    }
+  }
+}
+function lvSetDoor(d, locked) {
+  if (typeof d === 'number') d = LV.doors[d]; if (!d || d.locked === locked) return;
+  d.locked = locked; if (d.panel) d.panel.visible = locked;
+  const i = boxes.indexOf(d.box);
+  if (locked) { if (i < 0) boxes.push(d.box); } else if (i >= 0) boxes.splice(i, 1);
+  lvNavPatch(d.rect);
+  if (typeof sweep === 'function') sweep(locked ? 260 : 520, locked ? 120 : 300, 0.18, 'square', 0.04);
+}
+function lvBuild(seed, opts) {
+  opts = opts || {};
+  const t0 = performance.now();
+  if (LV.on) levelDispose(true);
+  const L = genLevel(seed, opts);
+  const ante = L.rooms.find(r => r.role === 'ante'); const aT = PG_TILES[ante.tile].rots[ante.rot]; ante.portalDoors = [aT.doors[0]];
+  const wd = pgWorldData(L);
+  LV.seedStr = String(seed); LV.L = L; LV.wd = wd; LV.geos = []; LV.mats = []; LV.doors = []; LV.rooms = []; LV.visited = new Set(); LV.cur = -1; LV.lastGood = null;
+  disposeArena(); arenaIdx = -1;
+  const T = ARENA_THEMES[0];
+  LV.matLit = new THREE.MeshLambertMaterial({ vertexColors: true }); LV.matGlow = new THREE.MeshBasicMaterial({ vertexColors: true });
+  LV.matPanel = new THREE.MeshBasicMaterial({ color: PGC.amber, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
+  LV.mats.push(LV.matLit, LV.matGlow, LV.matPanel);
+  const pg = {}; LV.panelGeo = w => pg[w] || (pg[w] = (() => { const g = new THREE.PlaneGeometry(w, 3.9); LV.geos.push(g); return g; })());
+  LV.group = new THREE.Group(); scene.add(LV.group);
+  LV.on = true; LV.boss = false; GA = null;
+  const bb = L.bbox; setWorld(bb.x0 - 1, bb.x1 + 1, bb.z0 - 1, bb.z1 + 1);
+  boxes.length = 0; for (const b of wd.boxes) boxes.push(b);
+  for (const d of L.doors) LV.doors.push(lvMakeDoor(d, L));
+  // the ante's arena portal: a grate (lock box) until the boss arena is ready
+  { const pd = aT.doors[0], w = pgDoorWorld(ante, pd), horiz = w.side === 'N' || w.side === 'S', cx = horiz ? (w.a + w.b) / 2 : w.at, cz = horiz ? w.at : (w.a + w.b) / 2;
+    const fake = { i: 90, a: ante.i, b: ante.i, cx, cz, horiz, width: w.b - w.a, lock: 'portal', side: w.side };
+    const o = lvMakeDoor(fake, L); o.dir = horiz ? [0, w.side === 'S' ? 1 : -1] : [w.side === 'E' ? 1 : -1, 0]; o.portal = true; LV.portal = o; LV.doors.push(o);
+    // lit header + frame for the portal (wide door)
+    const lit = new BoxBatch(), glow = new BoxBatch(), hw = fake.width / 2;
+    if (horiz) { lit.box(cx - hw, 3.9, cz - 0.55, cx + hw, 7, cz + 0.55, PGC.header, 1); glow.box(cx - hw - 0.3, 0, cz - 0.6, cx - hw, 3.9, cz + 0.6, PGC.amber, 1, true); glow.box(cx + hw, 0, cz - 0.6, cx + hw + 0.3, 3.9, cz + 0.6, PGC.amber, 1, true); glow.box(cx - hw - 0.3, 3.9, cz - 0.6, cx + hw + 0.3, 4.2, cz + 0.6, PGC.amber, 1, true); }
+    else { lit.box(cx - 0.55, 3.9, cz - hw, cx + 0.55, 7, cz + hw, PGC.header, 1); glow.box(cx - 0.6, 0, cz - hw - 0.3, cx + 0.6, 3.9, cz - hw, PGC.amber, 1, true); glow.box(cx - 0.6, 0, cz + hw, cx + 0.6, 3.9, cz + hw + 0.3, PGC.amber, 1, true); glow.box(cx - 0.6, 3.9, cz - hw - 0.3, cx + 0.6, 4.2, cz + hw + 0.3, PGC.amber, 1, true); }
+    ante._portalMeshes = [];
+    for (const [bt, mat] of [[lit, LV.matLit], [glow, LV.matGlow]]) { const g = bt.geo(); LV.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; LV.group.add(m); ante._portalMeshes.push(m); }
+  }
+  for (const rm of L.rooms) {
+    const info = wd.rooms[rm.i], meshes = lvBuildRoomMeshes(rm, info, L);
+    LV.rooms.push({ i: rm.i, tile: rm.tile, role: rm.role, brole: rm.brole, kind: rm.kind, seg: rm.seg, name: PG_TILES[rm.tile].name, x0: info.x0, z0: info.z0, x1: info.x1, z1: info.z1, cx: rm.cx, cz: rm.cz, m: info.m, zone: info.zone, cover: info.cover.length, meshes, doors: info.doors, rot: rm.rot, set: rm.set, ante: rm.role === 'ante' });
+  }
+  for (const r of LV.rooms) if (r.ante) r.meshes.push(...L.rooms[r.i]._portalMeshes);
+  // room graph
+  for (const r of LV.rooms) r.nb = [];
+  for (const d of L.doors) { LV.rooms[d.a].nb.push([d.b, d.i]); LV.rooms[d.b].nb.push([d.a, d.i]); }
+  // the Relay Mast landmark outside the ante's arena door (skyline only; the real arena is built hidden and swapped in)
+  lvBuildMast(LV.group);
+  if (typeof lvAfterBuild === 'function') lvAfterBuild();
+  GRIDS.small = buildGrid(0.7); GRIDS.big = buildGrid(1.45); rebuildSafeSpawns();
+  arenaTheme = T; scene.background.setHex(T.bg); scene.fog.color.setHex(T.bg); scene.fog.near = 34; scene.fog.far = 92;
+  ambLight.color.setHex(T.amb[0]); ambLight.intensity = T.amb[1]; dirLight.color.setHex(T.dir[0]); dirLight.intensity = T.dir[1];
+  mmSetFrame(); lvCull(true);
+  LV.buildMs = performance.now() - t0;
+  return L;
+}
+function levelDispose(keepWorld) {
+  if (!LV.on && !LV.group) return;
+  if (LV.group) { scene.remove(LV.group); while (LV.group.children.length) LV.group.remove(LV.group.children[0]); }
+  for (const g of LV.geos) g.dispose(); for (const m of LV.mats) m.dispose();
+  LV.geos = []; LV.mats = []; LV.group = null; LV.rooms = []; LV.doors = []; LV.L = null; LV.wd = null; LV.portal = null; LV.mast = null; LV.cur = -1;
+  if (typeof arenaDispose === 'function') arenaDispose();
+  GA = null; LV.on = false; LV.boss = false; boxes.length = 0; arenaIdx = -1;
+  if (!keepWorld) setWorld(-ARENA, ARENA, -ARENA, ARENA);
+}
+function lvBuildMast(parent, at) {   // 40 m lattice tower: 4 legs, ring braces, a beacon cap. Positioned by lvPlaceMast().
+  const b = new BoxBatch(), g2 = new BoxBatch(), H = 40;
+  const legs = [[-2.2, -2.2], [2.2, -2.2], [2.2, 2.2], [-2.2, 2.2]];
+  for (let s = 0; s < 8; s++) {
+    const y0 = s * 5, y1 = y0 + 5, k0 = 1 - s * 0.08, k1 = 1 - (s + 1) * 0.08;
+    for (const [lx, lz] of legs) b.box(lx * k0 - 0.2, y0, lz * k0 - 0.2, lx * k1 + 0.2, y1, lz * k1 + 0.2, 0x56626f, 1);
+    b.box(-2.3 * k1, y1 - 0.2, -2.3 * k1, 2.3 * k1, y1, 2.3 * k1, 0x6c7886, 1, true);
+    if (s % 2 === 0) { b.box(-2.2 * k0, y0 + 2, -0.1, 2.2 * k0, y0 + 2.2, 0.1, 0x56626f, 1, true); b.box(-0.1, y0 + 2, -2.2 * k0, 0.1, y0 + 2.2, 2.2 * k0, 0x56626f, 1, true); }
+  }
+  b.box(-1.2, H - 0.2, -1.2, 1.2, H + 0.4, 1.2, 0x7a8898, 1);
+  g2.box(-0.5, H + 0.4, -0.5, 0.5, H + 2.4, 0.5, PGC.cyan, 1, true);
+  for (let i = 0; i < 4; i++) g2.box(-2.3, 30 + i * 3, -2.3, 2.3, 30 + i * 3 + 0.12, 2.3, PGC.amber, 0.9, true);
+  const mast = new THREE.Group();
+  const ms = [[b, LV.matLit], [g2, LV.matGlow]].map(([bt, mat]) => { const g = bt.geo(); LV.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; mast.add(m); return m; });
+  mast.userData.glowMesh = ms[1];
+  parent.add(mast); LV.mast = mast; mast.visible = true;
+  // aim: outside the ante's portal, 34 m out, level frame
+  const p = LV.portal;
+  if (at) mast.position.set(at[0], 0, at[1]); else mast.position.set(p.cx + p.dir[0] * 36, 0, p.cz + p.dir[1] * 36);
+  // far mast base shroud so the tower reads as a tall silhouette over walls (no collider)
+}
+// ---- room lookup / visibility ----
+function lvRoomAt(x, z) { for (const r of LV.rooms) if (x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1) return r.i; return -1; }
+const _lvFr = new THREE.Frustum(), _lvM = new THREE.Matrix4(), _lvSph = new THREE.Sphere();
+function lvCull(force) {
+  if (!LV.on || LV.boss) return;
+  const here = lvRoomAt(camera.position.x, camera.position.z);
+  if (here >= 0 && here !== LV.cur) { LV.cur = here; LV.visited.add(here); lvEnteredRoom(here); }
+  const cur = LV.cur; if (cur < 0) return;
+  // graph distance <= 2 from the current room (through open or closed doors), plus anything inside the view frustum for distance 2
+  const dist = new Array(LV.rooms.length).fill(9); dist[cur] = 0; const q = [cur];
+  while (q.length) { const c = q.shift(); if (dist[c] >= 2) continue; for (const [n] of LV.rooms[c].nb) if (dist[n] > dist[c] + 1) { dist[n] = dist[c] + 1; q.push(n); } }
+  camera.updateMatrixWorld(); _lvM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); _lvFr.setFromProjectionMatrix(_lvM);
+  const vis = new Set();
+  for (const r of LV.rooms) {
+    let v = dist[r.i] <= 1;
+    if (!v && dist[r.i] <= 2) { _lvSph.center.set(r.cx, 3, r.cz); _lvSph.radius = Math.hypot(r.x1 - r.x0, r.z1 - r.z0) / 2; v = _lvFr.intersectsSphere(_lvSph); }
+    if (r.ante && dist[r.i] <= 3) v = true;
+    if (v) vis.add(r.i);
+    for (const m of r.meshes) if (m.visible !== v) m.visible = v;
+  }
+  for (const d of LV.doors) { const v = d.locked && (vis.has(d.a) || vis.has(d.b)); if (d.panel.visible !== v) d.panel.visible = v; }
+  LV.vis = vis;
+  if (LV.mast) LV.mast.visible = true;
+}
+function lvEnteredRoom(i) { if (typeof lvFlowEnter === 'function') lvFlowEnter(i); mmT = 1; }
+// stay inside the level: if the player ends up outside every room / doorway rect (a fast sprint through a thin wall), put them back
+function lvKeepIn() {
+  if (!LV.on || LV.boss || player.dead) return;
+  const x = camera.position.x, z = camera.position.z;
+  let ok = lvRoomAt(x, z) >= 0;
+  if (!ok) for (const d of LV.doors) { const r = d.rect, m = 0.1; if (x > r[0] - m && x < r[1] + m && z > r[2] - m && z < r[3] + m) { ok = true; break; } }
+  if (ok) { if (!LV.lastGood) LV.lastGood = { x, z }; else { LV.lastGood.x = x; LV.lastGood.z = z; } }
+  else if (LV.lastGood) { camera.position.x = LV.lastGood.x; camera.position.z = LV.lastGood.z; }
+}
+// ---- spawn picking in a generated level ----
+function lvSpawnRooms() { return LV.spawnRooms && LV.spawnRooms.length ? LV.spawnRooms : [LV.cur]; }
+function lvPickSpawn(big, minDist, avoid) {
+  if (LV.boss && typeof lvBossSpawn === 'function') return lvBossSpawn(big, minDist, avoid);
+  const cands = [], px = camera.position.x, pz = camera.position.z;
+  for (const ri of lvSpawnRooms()) { const r = LV.rooms[ri]; if (!r) continue; for (const k of ['door', 'hall', 'idle']) { const a = r.m[k]; if (!a) continue; for (const p of (typeof a[0] === 'number' ? [a] : a)) cands.push(p); } }
+  const grid = big ? GRIDS.big : GRIDS.small, md = Math.max(minDist || 0, 8);
+  let best = null, bd = -1;
+  for (let t = 0; t < 24; t++) {
+    const p = cands[Math.floor(Math.random() * cands.length)]; if (!p) break;
+    if (!pointFree(grid, p[0], p[1])) continue;
+    let ok = true; for (const e of enemies) if (Math.hypot(e.position.x - p[0], e.position.z - p[1]) < 2.2) { ok = false; break; }
+    if (avoid && Math.hypot(p[0] - avoid.x, p[1] - avoid.z) < avoid.r) ok = false;
+    const d = Math.hypot(p[0] - px, p[1] - pz);
+    if (ok && d >= md) return { x: p[0], z: p[1] };
+    if (ok && d > bd) { bd = d; best = p; }
+  }
+  if (best) return { x: best[0], z: best[1] };
+  const r = LV.rooms[lvSpawnRooms()[0]] || LV.rooms[0]; return { x: r.cx, z: r.cz };
+}
+// ---- minimap: visited rooms only ----
+function lvDrawMm(g) {
+  const fg = '#7d8ea4';
+  if (LV.boss) { if (typeof lvDrawMmBoss === 'function') lvDrawMmBoss(g); return; }
+  for (const r of LV.rooms) {
+    if (!LV.visited.has(r.i)) continue;
+    g.fillStyle = '#222d3a'; g.fillRect(mmX(r.x0), mmZ(r.z0), (r.x1 - r.x0) * MMS, (r.z1 - r.z0) * MMS);
+    g.fillStyle = r.role === 'mini' ? '#5a2f2f' : (r.role === 'objective' || r.role === 'objective2' || r.role === 'arena') ? '#27465a' : '#222d3a'; g.globalAlpha = 0.5; g.fillRect(mmX(r.x0) + 1, mmZ(r.z0) + 1, (r.x1 - r.x0) * MMS - 2, (r.z1 - r.z0) * MMS - 2); g.globalAlpha = 1;
+    g.fillStyle = fg;
+    for (const b of LV.wd.rooms[r.i].boxes) { if (b.kind === 'cover') { g.globalAlpha = 0.55; g.fillRect(mmX(b.x0), mmZ(b.z0), Math.max(1.5, (b.x1 - b.x0) * MMS), Math.max(1.5, (b.z1 - b.z0) * MMS)); g.globalAlpha = 1; } else g.fillRect(mmX(b.x0), mmZ(b.z0), Math.max(1.5, (b.x1 - b.x0) * MMS), Math.max(1.5, (b.z1 - b.z0) * MMS)); }
+  }
+  for (const d of LV.doors) { if (d.portal) continue; if (!LV.visited.has(d.a) && !LV.visited.has(d.b)) continue; g.fillStyle = d.locked ? '#ffa040' : '#66ddff'; g.fillRect(mmX(d.rect[0]) - 0.5, mmZ(d.rect[2]) - 0.5, Math.max(3, (d.rect[1] - d.rect[0]) * MMS + 1), Math.max(3, (d.rect[3] - d.rect[2]) * MMS + 1)); }
+  if (LV.portal && LV.visited.has(LV.portal.a)) { g.fillStyle = LV.portal.locked ? '#ffa040' : '#66ddff'; const d = LV.portal; g.fillRect(mmX(d.rect[0]) - 0.5, mmZ(d.rect[2]) - 0.5, Math.max(3, (d.rect[1] - d.rect[0]) * MMS + 1), Math.max(3, (d.rect[3] - d.rect[2]) * MMS + 1)); }
+  for (const r of LV.rooms) if (r.kind === 'C' && LV.visited.has(r.i) && !(LV.caches && LV.caches[r.i] && LV.caches[r.i].opened)) { g.fillStyle = '#ffd45a'; const m = r.m.chest; g.fillRect(mmX(m[0]) - 3, mmZ(m[1]) - 3, 6, 6); }
+}
+
+// =====================================================================
+//  PG-1c (v10) THE BOSS ARENA ("Relay Yard Cistern"): hand-built 64x64 m room, 2 elevation decks (ramp + rails), 4 add doorways, 4 sniper perches,
+//  major / elite pads, fixed beacon sockets, a 40 m Relay Mast. Built hidden in 4 slices while the player is in the antechamber, then swapped in.
+//  Frame: x east, z south. Arena x -32..32, z -36..28; antechamber (rot 0) x -8..8, z 28..40; doorway alcoves outside the walls.
+// =====================================================================
+const AR = { x0: -32, x1: 32, z0: -36, z1: 28, H: 8, wx0: -46, wx1: 46, wz0: -46, wz1: 44 };
+const AR_DECK = { x0: 18, x1: 32, z0: -22, z1: 0, h: 2.4 }, AR_RAMP = { x0: 20, x1: 28, z0: 0, z1: 12 };
+const AR_COVER = [[-11, -5, 5.6, 2.4, 2.4, 'container'], [11, -5, 5.6, 2.4, 2.4, 'container'], [-6, 8, 3, 1.4, 1.3, 'barrier'], [6, 8, 3, 1.4, 1.3, 'barrier'],
+  [-14, -18, 2.4, 2.4, 2.2, 'stack'], [14, -18, 2.4, 2.4, 2.2, 'stack'], [-5, -14, 1.6, 1.6, 3.2, 'pillar'], [5, -14, 1.6, 1.6, 3.2, 'pillar'],
+  [-22, -29, 3, 1.4, 1.3, 'barrier'], [22, -29, 3, 1.4, 1.3, 'barrier'], [-12, 16, 3, 1.4, 1.3, 'barrier'], [12, 16, 3, 1.4, 1.3, 'barrier'], [0, -3, 2.4, 1.6, 1.1, 'console']];
+const AR_DW = [   // add doorways: side, centre coordinate, spawn point inside the alcove
+  { side: 'N', c: -14, sp: [-14, -41] }, { side: 'N', c: 14, sp: [14, -41] }, { side: 'W', c: -30, sp: [-40, -30] }, { side: 'E', c: 30, sp: [40, -30] }];
+const AR_PADS = { 'BOSS': [0, -20], 'MP-1': [-9, -25], 'MP-2': [9, -25], 'EP-1': [-16, -27], 'EP-2': [16, -27], 'PE1': [26, -17], 'PE2': [26, -6], 'PW1': [-26, -17], 'PW2': [-26, -6] };
+const AR_SOCKETS = [[-22, -27], [22, -27], [0, -9]];
+const AR_HAZ = [[-9.8, -34, -8.2, -9], [8.2, -34, 9.8, -9]];   // P3 hazard strips (x0, z0, x1, z1)
+const arGA = (x, z) => {
+  const ax = Math.abs(x);
+  if (ax >= AR_DECK.x0 && ax <= AR_DECK.x1 && z >= AR_DECK.z0 && z <= AR_DECK.z1) return AR_DECK.h;
+  if (ax >= AR_RAMP.x0 && ax <= AR_RAMP.x1 && z > AR_RAMP.z0 && z < AR_RAMP.z1) return AR_DECK.h * (AR_RAMP.z1 - z) / (AR_RAMP.z1 - AR_RAMP.z0);
+  return 0;
+};
+Object.assign(LV, { arena: null, boss: false, phase: 1, hazT0: 0, hazTick: 0, revealT: -99, themeTo: null, arenaMs: [], arenaTotalMs: 0, arenaReady: false, swapMs: 0, swapped: false });
+
+function lvRailBox(x0, z0, x1, z1) { return { kind: 'rail', rail: true, x0, x1, z0, z1, y0: 0, y1: 1.1 }; }
+// ---- the 4 build slices (each ~<=80 ms) ----
+function arSlice0(A) {   // floor, perimeter walls, doorway alcoves
+  const lit = A.lit, glow = A.glow, B = A.boxes, H = AR.H;
+  for (let cx = 0; cx < 16; cx++) for (let cz = 0; cz < 16; cz++) lit.quad(AR.x0 + cx * 4, AR.z0 + cz * 4, AR.x0 + cx * 4 + 4, AR.z0 + cz * 4 + 4, 0, ((cx + cz) & 1) ? PGC.floorA : PGC.floorB, 0.94 + pgVar(cx, cz) * 0.1);
+  // floor marks: boss ring (square), centre lanes
+  const ring = (cx, cz, h, w, col) => { glow.quad(cx - h, cz - h, cx + h, cz - h + w, 0.02, col, 1); glow.quad(cx - h, cz + h - w, cx + h, cz + h, 0.02, col, 1); glow.quad(cx - h, cz - h, cx - h + w, cz + h, 0.02, col, 1); glow.quad(cx + h - w, cz - h, cx + h, cz + h, 0.02, col, 1); };
+  ring(0, -20, 8, 0.2, PGC.dim); ring(0, -20, 5.5, 0.12, PGC.dim);
+  glow.quad(-0.15, -10, 0.15, 24, 0.02, PGC.dim, 1);
+  const wall = (x0, z0, x1, z1) => { const b = { kind: 'wall', x0, z0, x1, z1, y0: 0, y1: H, room: 0 }; B.push(b); lit.box(x0, 0, z0, x1, H, z1, PGC.wall, 1); lit.box(x0 - 0.02, 0, z0 - 0.02, x1 + 0.02, 0.5, z1 + 0.02, PGC.wallLow, 1, true); lit.box(x0 - 0.04, H - 0.5, z0 - 0.04, x1 + 0.04, H, z1 + 0.04, PGC.trim, 1, true);
+    const horiz = (x1 - x0) > (z1 - z0); if (horiz) { glow.box(x0, 1.0, z0 - 0.04, x1, 1.14, z0, PGC.cyan, 0.8, true); glow.box(x0, 1.0, z1, x1, 1.14, z1 + 0.04, PGC.cyan, 0.8, true); } else { glow.box(x0 - 0.04, 1.0, z0, x0, 1.14, z1, PGC.cyan, 0.8, true); glow.box(x1, 1.0, z0, x1 + 0.04, 1.14, z1, PGC.cyan, 0.8, true); } };
+  // N wall (z -37..-36) with two doorways; S wall (z 28..29) beside the antechamber; W / E walls with one doorway each
+  const n = AR_DW; const gap = (d) => [d.c - 3, d.c + 3];
+  wall(-33, -37, gap(n[0])[0], -36); wall(gap(n[0])[1], -37, gap(n[1])[0], -36); wall(gap(n[1])[1], -37, 33, -36);
+  wall(-33, 28, -8, 29); wall(8, 28, 33, 29);
+  wall(-33, -36, -32, gap(n[2])[0]); wall(-33, gap(n[2])[1], -32, 28);
+  wall(32, -36, 33, gap(n[3])[0]); wall(32, gap(n[3])[1], 33, 28);
+  // alcoves
+  for (const d of AR_DW) {
+    const c = d.c, g0 = c - 3, g1 = c + 3;
+    if (d.side === 'N') {
+      wall(c - 4, -45, c + 4, -44); wall(c - 4, -44, c - 3, -37); wall(c + 3, -44, c + 4, -37);
+      lit.quad(c - 3, -44, c + 3, -37, 0, PGC.floorB, 1); glow.quad(c - 2.4, -43, c + 2.4, -42.8, 0.03, PGC.amber, 0.9);
+      lit.box(g0 - 0.35, 0, -37.4, g0, 4.6, -35.6, PGC.header, 1); lit.box(g1, 0, -37.4, g1 + 0.35, 4.6, -35.6, PGC.header, 1); lit.box(g0 - 0.35, 4.6, -37.4, g1 + 0.35, 7, -35.6, PGC.header, 1);
+      glow.box(g0 - 0.05, 0, -37.3, g0 + 0.02, 4.6, -35.7, PGC.amber, 1, true); glow.box(g1 - 0.02, 0, -37.3, g1 + 0.05, 4.6, -35.7, PGC.amber, 1, true);
+    } else {
+      const s = d.side === 'W' ? -1 : 1, xa = s < 0 ? -45 : 32, wx = s < 0 ? -33 : 33;   // alcove outer / inner x
+      if (s < 0) { wall(-46, g0 - 1, -45, g1 + 1); wall(-45, g0 - 1, -33, g0); wall(-45, g1, -33, g1 + 1); lit.quad(-44, g0, -33, g1, 0, PGC.floorB, 1); glow.quad(-43, c - 2.4, -42.8, c + 2.4, 0.03, PGC.amber, 0.9); }
+      else { wall(45, g0 - 1, 46, g1 + 1); wall(33, g0 - 1, 45, g0); wall(33, g1, 45, g1 + 1); lit.quad(33, g0, 44, g1, 0, PGC.floorB, 1); glow.quad(42.8, c - 2.4, 43, c + 2.4, 0.03, PGC.amber, 0.9); }
+      const x0 = s < 0 ? -33.4 : 31.6, x1 = x0 + 1.8;
+      lit.box(x0, 0, g0 - 0.35, x1, 4.6, g0, PGC.header, 1); lit.box(x0, 0, g1, x1, 4.6, g1 + 0.35, PGC.header, 1); lit.box(x0, 4.6, g0 - 0.35, x1, 7, g1 + 0.35, PGC.header, 1);
+      glow.box(x0 + 0.1, 0, g0 - 0.05, x1 - 0.1, 4.6, g0 + 0.02, PGC.amber, 1, true); glow.box(x0 + 0.1, 0, g1 - 0.02, x1 - 0.1, 4.6, g1 + 0.05, PGC.amber, 1, true);
+    }
+  }
+}
+function arSlice1(A) {   // decks, ramps, rails, cover, the mast collider
+  const lit = A.lit, glow = A.glow, B = A.boxes, h = AR_DECK.h;
+  for (const s of [1, -1]) {
+    const dx0 = s > 0 ? AR_DECK.x0 : -AR_DECK.x1, dx1 = s > 0 ? AR_DECK.x1 : -AR_DECK.x0, rx0 = s > 0 ? AR_RAMP.x0 : -AR_RAMP.x1, rx1 = s > 0 ? AR_RAMP.x1 : -AR_RAMP.x0;
+    lit.box(dx0, 0, AR_DECK.z0, dx1, h, AR_DECK.z1, PGC.wallLow, 1);
+    for (let cx = 0; cx < 3; cx++) for (let cz = 0; cz < 5; cz++) lit.quad(dx0 + cx * 4.6, AR_DECK.z0 + cz * 4.4, Math.min(dx1, dx0 + cx * 4.6 + 4.6), AR_DECK.z0 + cz * 4.4 + 4.4, h + 0.01, ((cx + cz) & 1) ? 0x4a5666 : 0x424c5a, 1);
+    lit.box(dx0 - 0.06, h - 0.25, AR_DECK.z0 - 0.06, dx1 + 0.06, h, AR_DECK.z1 + 0.06, PGC.trim, 1, true);
+    glow.box(dx0 - 0.08, h * 0.45, AR_DECK.z0 - 0.08, dx0 - 0.02, h * 0.45 + 0.14, AR_DECK.z1 + 0.08, PGC.cyan, 0.8, true);
+    // ramp surface + stepped skirts
+    A.lit.face([rx0, h, 0], [rx0, 0, 12], [rx1, 0, 12], [rx1, h, 0], [0, 0.98, 0.2], hexRGB(0x56606c), 1, 0.9);
+    for (let i = 0; i < 6; i++) { const z0 = i * 2, hh = h * (12 - z0 - 2) / 12 + 0.02, hr = h * (12 - z0) / 12; lit.box(rx0 - 0.3, 0, z0, rx0, hr, z0 + 2, PGC.wallLow, 1, true); lit.box(rx1, 0, z0, rx1 + 0.3, hr, z0 + 2, PGC.wallLow, 1, true); glow.box(rx0 - 0.3, hr, z0, rx0, hr + 0.06, z0 + 2, PGC.amber, 0.9, true); glow.box(rx1, hr, z0, rx1 + 0.3, hr + 0.06, z0 + 2, PGC.amber, 0.9, true); if (i % 2 === 0) glow.quad(rx0 + 0.3, z0 + 0.8, rx1 - 0.3, z0 + 1.0, h * (12 - z0 - 0.9) / 12 + 0.03, PGC.dim, 1); }
+    // deck rails (inner edge, south edge with the ramp opening, north edge)
+    const rl = (x0, z0, x1, z1) => { const r = lvRailBox(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1)); B.push(r); lit.box(r.x0, h, r.z0, r.x1, h + 1.1, r.z1, PGC.rack, 1); glow.box(r.x0 - 0.01, h + 1.0, r.z0 - 0.01, r.x1 + 0.01, h + 1.1, r.z1 + 0.01, PGC.cyan, 0.9, true); };
+    const ix = s > 0 ? dx0 : dx1;
+    rl(ix - 0.3 * s, AR_DECK.z0, ix, AR_DECK.z1);                                   // inner edge (x = +-18)
+    rl(dx0, AR_DECK.z0 - 0.3, dx1, AR_DECK.z0);                                      // north edge
+    rl(ix, -0.3, rx0 < 0 ? rx0 : rx0, 0); rl(rx1, -0.3, s > 0 ? dx1 : dx0, 0);      // south edge both sides of the ramp
+    if (s > 0) { rl(rx0 - 0.3, 0, rx0, 12); rl(rx1, 0, rx1 + 0.3, 12); } else { rl(rx0 - 0.3, 0, rx0, 12); rl(rx1, 0, rx1 + 0.3, 12); }
+    // the ramp rails sit at ramp height but the collider is 2D; the visuals ride the skirts above
+  }
+  // cover pieces (colliders + detail)
+  for (const c of AR_COVER) { const b = { kind: 'cover', ck: c[5], x0: c[0] - c[2] / 2, x1: c[0] + c[2] / 2, z0: c[1] - c[3] / 2, z1: c[1] + c[3] / 2, y0: 0, y1: c[4], room: 0 }; B.push(b); lvCoverDetail(lit, glow, b); }
+}
+function arSlice2(A) {   // pads, sockets, hazard strips, antechamber, door objects
+  const lit = A.lit, glow = A.glow, B = A.boxes;
+  const sq = (cx, cz, h, w, col, y) => { glow.quad(cx - h, cz - h, cx + h, cz - h + w, y, col, 1); glow.quad(cx - h, cz + h - w, cx + h, cz + h, y, col, 1); glow.quad(cx - h, cz - h, cx - h + w, cz + h, y, col, 1); glow.quad(cx + h - w, cz - h, cx + h, cz + h, y, col, 1); };
+  for (const k of ['MP-1', 'MP-2']) { const p = AR_PADS[k]; sq(p[0], p[1], 1.7, 0.16, PGC.amber, 0.03); sq(p[0], p[1], 0.9, 0.1, PGC.amber, 0.03); }
+  for (const k of ['EP-1', 'EP-2']) { const p = AR_PADS[k]; sq(p[0], p[1], 1.2, 0.14, PGC.red, 0.03); }
+  for (const k of ['PE1', 'PE2', 'PW1', 'PW2']) { const p = AR_PADS[k]; sq(p[0], p[1], 0.8, 0.1, PGC.cyan, AR_DECK.h + 0.03); }
+  for (const p of AR_SOCKETS) { lit.box(p[0] - 0.8, 0, p[1] - 0.8, p[0] + 0.8, 0.3, p[1] + 0.8, PGC.console, 1); sq(p[0], p[1], 1.4, 0.1, PGC.cyan, 0.03); glow.quad(p[0] - 0.5, p[1] - 0.5, p[0] + 0.5, p[1] + 0.5, 0.32, PGC.cyan, 0.8); }
+  // hazard strips (their own mesh so the colour can pulse)
+  const hz = new BoxBatch(); for (const s of AR_HAZ) hz.quad(s[0], s[1], s[2], s[3], 0.05, 0xffffff, 1);
+  A.hazGeo = hz.geo(); A.hazMat = new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.0, depthWrite: false, vertexColors: true }); A.geos.push(A.hazGeo); A.mats.push(A.hazMat);
+  A.haz = new THREE.Mesh(A.hazGeo, A.hazMat); A.haz.raycast = noopRaycast; A.haz.visible = false; A.group.add(A.haz);
+  // antechamber at rot 0 (same cover set as the level's ante)
+  const src = LV.L.rooms.find(r => r.role === 'ante'), T0 = PG_TILES[src.tile].rots[0];
+  const rm = { i: 0, tile: src.tile, rot: 0, x: -8, z: 28, W: T0.W, D: T0.D, role: 'ante', kind: 'A', seg: 4, cx: 0, cz: 28 + T0.D / 2, portalDoors: [T0.doors[0]], forceSet: src.set };
+  const L2 = { seed: 'arena-' + LV.seedStr, rooms: [rm], doors: [] };
+  const wd = pgWorldData(L2); A.wdAnte = wd.rooms[0];
+  const save = [LV.group, LV.geos, LV.matLit, LV.matGlow, LV.matPanel]; LV.group = A.group; LV.geos = A.geos; LV.matLit = A.matLit; LV.matGlow = A.matGlow; LV.matPanel = A.matPanel;
+  try {
+    A.anteMeshes = lvBuildRoomMeshes(rm, wd.rooms[0], L2);
+    for (const b of wd.boxes) B.push(b);
+    // door objects (created unlocked: boxes are installed at the swap)
+    const L3 = { rooms: [{ cx: 0, cz: 0 }] }, mk = (fake, dir) => { const o = lvMakeDoor(Object.assign({ a: 0, b: 0, lock: 'none', k: 0 }, fake), L3); o.dir = dir; o.locked = false; if (o.panel) o.panel.visible = false; return o; };
+    const pd = T0.doors[0], hw = (pd.c1 - pd.c0) / 2, cx = rm.x + (pd.c0 + pd.c1) / 2;
+    A.portal = mk({ i: 90, cx, cz: 28, horiz: true, width: hw * 2, side: 'N' }, [0, -1]); A.portal.portal = true;
+    A.dws = AR_DW.map((d, i) => { const horiz = d.side === 'N', cxx = horiz ? d.c : (d.side === 'W' ? -32.5 : 32.5), czz = horiz ? -36.5 : d.c; const o = mk({ i: 91 + i, cx: cxx, cz: czz, horiz, width: 6 }, horiz ? [0, -1] : [d.side === 'W' ? -1 : 1, 0]); o.dw = i; o.sp = d.sp; return o; });
+    // portal frame (lit header + amber posts like the level's ante)
+    const lit2 = new BoxBatch(), glow2 = new BoxBatch();
+    lit2.box(cx - hw, 3.9, 27.45, cx + hw, 7, 28.55, PGC.header, 1); glow2.box(cx - hw - 0.3, 0, 27.4, cx - hw, 3.9, 28.6, PGC.cyan, 1, true); glow2.box(cx + hw, 0, 27.4, cx + hw + 0.3, 3.9, 28.6, PGC.cyan, 1, true); glow2.box(cx - hw - 0.3, 3.9, 27.4, cx + hw + 0.3, 4.2, 28.6, PGC.cyan, 1, true);
+    for (const [bt, mat] of [[lit2, A.matLit], [glow2, A.matGlow]]) { const g = bt.geo(); A.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; m.matrixAutoUpdate = false; A.group.add(m); }
+  } finally { LV.group = save[0]; LV.geos = save[1]; LV.matLit = save[2]; LV.matGlow = save[3]; LV.matPanel = save[4]; }
+}
+function arSlice3(A) {   // finalise the batched geometry and the mast
+  for (const [bt, mat] of [[A.lit, A.matLit], [A.glow, A.matGlow]]) { const g = bt.geo(); A.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; m.matrixAutoUpdate = false; A.group.add(m); A.meshes.push(m); }
+  const save = [LV.geos, LV.mats, LV.mast, LV.matLit, LV.matGlow]; LV.geos = A.geos; LV.mats = A.mats; LV.matLit = A.matLit; LV.matGlow = A.matGlow;
+  try { lvBuildMast(A.group, [0, -31]); A.mast = LV.mast; } finally { LV.geos = save[0]; LV.mats = save[1]; LV.mast = save[2]; LV.matLit = save[3]; LV.matGlow = save[4]; }
+  A.boxes.push({ kind: 'block', x0: -2.4, x1: 2.4, z0: -33.4, z1: -28.6, y0: 0, y1: 40, room: 0 });
+  A.group.visible = false; scene.add(A.group);
+}
+function arenaStartBuild() {
+  if (LV.arena) return LV.arena;
+  const A = LV.arena = { slice: 0, lit: new BoxBatch(), glow: new BoxBatch(), boxes: [], geos: [], mats: [], meshes: [], ms: [], group: new THREE.Group(), t0: performance.now(), lastSliceAt: 0 };
+  A.matLit = new THREE.MeshLambertMaterial({ vertexColors: true }); A.matGlow = new THREE.MeshBasicMaterial({ vertexColors: true });
+  A.matPanel = new THREE.MeshBasicMaterial({ color: PGC.amber, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false });
+  A.mats.push(A.matLit, A.matGlow, A.matPanel); LV.arenaMs = []; LV.arenaReady = false;
+  return A;
+}
+function arenaBuildSlice() {   // one slice per call; returns true when the build is complete
+  const A = arenaStartBuild(); if (A.slice >= 4) return true;
+  const t = performance.now(); [arSlice0, arSlice1, arSlice2, arSlice3][A.slice](A); A.slice++;
+  const dt = performance.now() - t; A.ms.push(dt); LV.arenaMs = A.ms.slice();
+  if (A.slice >= 4) { LV.arenaReady = true; LV.arenaTotalMs = A.ms.reduce((a, b) => a + b, 0); }
+  return A.slice >= 4;
+}
+function arenaDispose() {   // an unswapped (pending) arena build
+  const A = LV.arena; if (!A) return;
+  if (A.group) { scene.remove(A.group); while (A.group.children.length) A.group.remove(A.group.children[0]); }
+  for (const g of A.geos) g.dispose(); for (const m of A.mats) m.dispose();
+  LV.arena = null; LV.arenaReady = false;
+}
+// ---- the swap: drop the level, install the arena, teleport the player (rotation-compensated) ----
+function lvSwapToArena(keepPlayer) {
+  const A = LV.arena; if (!A || A.slice < 4) return false;
+  const t0 = performance.now(), ante = LV.L.rooms.find(r => r.role === 'ante'), k = ante.rot | 0;
+  // player placement in the arena frame
+  let px = 0, pz = 34, yw = yaw;
+  if (!keepPlayer) {
+    let lx = camera.position.x - ante.x, lz = camera.position.z - ante.z, W = ante.W, D = ante.D;
+    for (let i = 0; i < (4 - k) % 4; i++) { const nx = D - lz, nz = lx; lx = nx; lz = nz; const t = W; W = D; D = t; }
+    px = -8 + lx; pz = 28 + lz;
+    let fx_ = -Math.sin(yaw), fz = -Math.cos(yaw); for (let i = 0; i < k; i++) { const a = fz, b = -fx_; fx_ = a; fz = b; }   // inverse rotation, k times
+    yw = Math.atan2(-fx_, -fz);
+  }
+  // drop the level (meshes, geometry, materials, chests)
+  if (LV.group) { scene.remove(LV.group); while (LV.group.children.length) LV.group.remove(LV.group.children[0]); }
+  for (const g of LV.geos) g.dispose(); for (const m of LV.mats) m.dispose();
+  LV.geos = A.geos; LV.mats = A.mats; LV.matLit = A.matLit; LV.matGlow = A.matGlow; LV.matPanel = A.matPanel; LV.group = A.group; A.group.visible = true;
+  LV.rooms = []; LV.L = null; LV.wd = null; LV.mast = A.mast; LV.caches = {}; LV.visited = new Set(); LV.vis = null;
+  LV.boss = true; GA = arGA; LV.arena = null; LV.doors = [A.portal].concat(A.dws); LV.portal = A.portal; LV.dws = A.dws;
+  setWorld(AR.wx0, AR.wx1, AR.wz0, AR.wz1);
+  boxes.length = 0; for (const b of A.boxes) boxes.push(b);
+  GRIDS.small = buildGrid(0.7); GRIDS.big = buildGrid(1.45);
+  for (const d of A.dws) lvSetDoorQuiet(d, true);
+  lvSetDoorQuiet(A.portal, false);
+  A.portal.panel.visible = false;
+  // phase / theme state
+  LV.phase = 1; LV.hazOn = false; LV.bossDw = [false, false, false, false]; LV.themeTo = null; LV.hazT0 = 0; LV.revealT = -99; LV.swapped = true; LV.haz = A.haz; LV.hazMat = A.hazMat; LV.sockets = AR_SOCKETS;
+  mmSetFrame(); mmT = 1; LV.cur = -1;
+  camera.position.set(px, 1.6, pz); yaw = yw; player.velocity.set(0, 0, 0);
+  rebuildSafeSpawns();
+  LV.swapMs = performance.now() - t0; return true;
+}
+function lvSetDoorQuiet(d, locked) {   // lvSetDoor without the click
+  if (d.locked === locked) return; d.locked = locked; if (d.panel) d.panel.visible = locked;
+  const i = boxes.indexOf(d.box); if (locked) { if (i < 0) boxes.push(d.box); } else if (i >= 0) boxes.splice(i, 1);
+  lvNavPatch(d.rect);
+}
+function lvEnterArenaDirect() {   // QA / resume: build all slices now, swap immediately (player in the arena antechamber)
+  const ante = LV.L.rooms.find(r => r.role === 'ante'), m = LV.rooms[ante.i].m.player;
+  camera.position.set(m[0], 1.6, m[1]); while (!arenaBuildSlice()) { }
+  lvSwapToArena(false); yaw = Math.PI; camera.position.set(0, 1.6, 34); yaw = 0; S_cpArena();
+}
+function S_cpArena() { STRIKE.cp = { x: 0, z: 34 }; }
+// ---- stage 4 flow ----
+function lvBeginAnte(restart) {
+  const S = STRIKE, F = LV.flow; LV.introDone = false;
+  if (LV.boss) {   // already in the arena (retry / resume / direct): reset the room to Phase 1 and put the player back in the antechamber
+    lvArenaReset(); F.sub = 'swapped'; S.cp = { x: 0, z: 34 }; camera.position.set(0, 1.6, 34); yaw = 0; pitch = 0; player.velocity.set(0, 0, 0);
+    lvSetDoorQuiet(LV.portal, false); LV.portal.panel.visible = false; return;
+  }
+  F.sub = 'ante'; F.t0 = gt; arenaStartBuild(); LV.arena.t0 = performance.now(); LV.arena.lastSliceAt = gt;
+  for (const d of LV.doors) if (!d.portal && d.locked && d.i !== (LV.seg[3].exit)) { }
+  S.limit = 0;
+}
+function lvAnteTick(dt) {   // before the swap: slices one per frame, then swap after >= 1.5 s in the antechamber
+  const S = STRIKE, F = LV.flow; if (!F || F.sub !== 'ante' || LV.boss) return;
+  if (!LV.arenaReady) { if (gt >= LV.arena.lastSliceAt + 0.04) { arenaBuildSlice(); LV.arena.lastSliceAt = gt; } return; }
+  if (gt - F.t0 >= 1.5 && !player.dead) { if (lvSwapToArena(false)) { F.sub = 'swapped'; S.cp = { x: camera.position.x, z: camera.position.z }; lvSetDoor(LV.portal, false); toast('The arena door opens', '#66ddff'); sweep(200, 500, 0.5, 'square', 0.06); } }
+}
+function lvBossTick(dt) {   // arena runtime (boss mode), runs every frame
+  const S = STRIKE, F = LV.flow; if (!F) return;
+  if (F.sub === 'swapped' && !LV.introDone && camera.position.z < 24.5) {   // the player is inside: seal the door, reveal the Mast, fight starts
+    LV.introDone = true; lvSetDoor(LV.portal, true); LV.revealT = gt; F.sub = 'boss';
+    showBanner('THE RELAY MAST', 'The Chieftain holds the yard'); sweep(70, 260, 1.1, 'sawtooth', 0.12);
+  }
+  // phase theme (lerp)
+  if (LV.themeTo) { const k = Math.min(1, dt * 1.6); scene.background.lerp(LV.themeTo.bg, k); scene.fog.color.copy(scene.background); dirLight.color.lerp(LV.themeTo.dir, k); LV.matGlow.color.lerp(LV.themeTo.glow, k); }
+  // mast: reveal flash + P3 strobe
+  if (LV.mast && LV.mast.userData.glowMesh) LV.mast.userData.glowMesh.visible = LV.phase >= 3 ? ((gt * 4 | 0) & 1) === 0 : true;
+  // P3 hazard strips: 2 s warning, 5 s live, 1 s off; live strips tick 5% of max health every 0.5 s
+  if (LV.hazOn && LV.haz) {
+    const c = (gt - LV.hazT0) % 8, live = c >= 2 && c < 7, warn = c < 2;
+    LV.haz.visible = true; LV.hazMat.color.setHex(live ? 0xff3a22 : 0xffa040); LV.hazMat.opacity = live ? 0.55 + 0.2 * Math.sin(gt * 14) : warn ? 0.14 + 0.1 * Math.sin(gt * 10) : 0.0;
+    if (live && !player.dead && S.stageState === 'active' && gt >= LV.hazTick) {
+      const px = camera.position.x, pz = camera.position.z;
+      if (camera.position.y < 2.6) for (const s of AR_HAZ) if (px > s[0] && px < s[2] && pz > s[1] && pz < s[3]) { LV.hazTick = gt + 0.5; damagePlayer(0.05 * (player.maxHealth + player.maxShield), S.tier); LV.hazHits = (LV.hazHits | 0) + 1; break; }
+    }
+  } else if (LV.haz && LV.haz.visible) LV.haz.visible = false;
+}
+function lvBeginBossActive() {
+  const S = STRIKE; S.limit = 0; nextSpawnAt = gt; LV.hazHits = 0;
+  spawnQueue = ['boss@BOSS'].concat(shuffled(mkList({ dreg: 4, vandal: 3 }))); bossQueue = [];
+}
+function lvBossActiveTick(dt) {
+  const S = STRIKE; pumpSpawns(9, stageOpts);
+  const boss = enemies.find(e => e.userData.type === 'boss');
+  if (boss) S.bossSeen = true; else if (S.bossSeen) completeStrike();
+}
+function lvBossHud(title) {
+  const F = LV.flow, S = STRIKE; if (!F) return null;
+  if (S.stageState === 'intro') return { title, pct: 0, st: F.sub === 'ante' ? 'ENTER THE ANTECHAMBER' : 'ENTER THE ARENA', tm: '', red: false };
+  return null;
+}
+// ---- phase shifts ----
+function lvOpenDw(i) { if (!LV.dws || LV.bossDw[i]) return; LV.bossDw[i] = true; lvSetDoor(LV.dws[i], false); const d = LV.dws[i]; fx('ring', d.cx, 0.2, d.cz, 0xffa040, 4, 0.6, 0.8); }
+function lvArenaReset() {
+  if (!LV.dws) return; for (let i = 0; i < 4; i++) { LV.bossDw[i] = false; lvSetDoorQuiet(LV.dws[i], true); }
+  LV.phase = 1; LV.hazOn = false; if (LV.haz) LV.haz.visible = false; LV.revealT = -99; LV.hazTick = 0;
+  LV.themeTo = { bg: new THREE.Color(ARENA_THEMES[0].bg), dir: new THREE.Color(ARENA_THEMES[0].dir[0]), glow: new THREE.Color(0xffffff) };
+}
+function lvPhase(tag) {   // 'p2' | 'p3' | 'gate1' | 'gate2' | 'gateDown'
+  if (!LV.boss) return;
+  const C = h => new THREE.Color(h);
+  if (tag === 'p2') { LV.phase = 2; lvOpenDw(0); lvOpenDw(1); LV.themeTo = { bg: C(0x5c5648), dir: C(0xffe2b0), glow: C(0xffe0c0) }; showBanner('THE YARD SHIFTS', 'Doorways open'); }
+  else if (tag === 'gate1') { lvOpenDw(2); LV.themeTo = { bg: C(0x4a5a72), dir: C(0xb0e0ff), glow: C(0xffffff) }; }
+  else if (tag === 'gate2') { lvOpenDw(3); LV.themeTo = { bg: C(0x4a5a72), dir: C(0xb0e0ff), glow: C(0xffffff) }; }
+  else if (tag === 'gateDown') { LV.themeTo = { bg: C(LV.phase >= 3 ? 0x5e4040 : 0x5c5648), dir: C(LV.phase >= 3 ? 0xffb0a0 : 0xffe2b0), glow: C(0xffe0c0) }; }
+  else if (tag === 'p3') { LV.phase = 3; for (let i = 0; i < 4; i++) lvOpenDw(i); LV.hazOn = true; LV.hazT0 = gt; LV.hazTick = gt + 2.5; LV.themeTo = { bg: C(0x5e4040), dir: C(0xffb0a0), glow: C(0xff9080) }; showBanner('THE YARD BURNS', 'Stay off the glowing strips'); }
+}
+// ---- spawn / perch / socket helpers ----
+const LV_PERCHES = { 'P-E': ['PE1', 'PE2'], 'P-W': ['PW1', 'PW2'] };
+function lvPadPoint(name) {
+  if (LV_PERCHES[name]) { const L = LV_PERCHES[name], used = p => enemies.some(e => e.userData.type === 'sniper' && !e.userData.dead && Math.hypot(e.position.x - p[0], e.position.z - p[1]) < 2); const f = L.map(k => AR_PADS[k]).find(p => !used(p)) || AR_PADS[L[0]]; return { x: f[0], z: f[1] }; }
+  const p = AR_PADS[name]; if (!p) return null;
+  fx('ring', p[0], 0.1, p[1], name[0] === 'E' ? 0xff5a3a : 0xffa040, 3.2, 0.6, 0.9); sweep(240, 600, 0.3, 'triangle', 0.05);
+  return { x: p[0], z: p[1] };
+}
+function lvBossSpawn(big, minDist, avoid) {
+  const open = (LV.dws || []).filter((d, i) => LV.bossDw[i]);
+  if (open.length && Math.random() < 0.85) { const d = pick(open); for (let t = 0; t < 6; t++) { const x = d.sp[0] + (d.horiz ? rand(-1.5, 1.5) : rand(-0.5, 0.5)), z = d.sp[1] + (d.horiz ? rand(-0.5, 0.5) : rand(-1.5, 1.5)); if (!enemies.some(e => Math.hypot(e.position.x - x, e.position.z - z) < 1.6)) return { x, z }; } }
+  const px = camera.position.x, pz = camera.position.z; let best = null, bd = -1;
+  for (let t = 0; t < 30; t++) {
+    const x = rand(-28, 28), z = rand(-32, 22); if (groundAt(x, z) !== 0 || !pointFree(big ? GRIDS.big : GRIDS.small, x, z)) continue;
+    const d = Math.hypot(x - px, z - pz); if (enemies.some(e => Math.hypot(e.position.x - x, e.position.z - z) < 2.2)) continue;
+    if (avoid && Math.hypot(x - avoid.x, z - avoid.z) < avoid.r) continue;
+    if (d >= Math.max(minDist || 0, 16)) return { x, z }; if (d > bd) { bd = d; best = { x, z }; }
+  }
+  return best || { x: 0, z: -20 };
+}
+function lvSniperPerch(e) {
+  const px = camera.position.x, pz = camera.position.z; let best = null, bs = 1e9;
+  for (const k of ['PE1', 'PE2', 'PW1', 'PW2']) {
+    const p = AR_PADS[k], d = Math.hypot(p[0] - px, p[1] - pz); if (d < 12 || d > 46) continue;
+    if (enemies.some(o => o !== e && o.userData.type === 'sniper' && o.userData.perch && o.userData.perch.x === p[0] && o.userData.perch.z === p[1])) continue;
+    if (!segClear(p[0], p[1], px, pz, 0.15)) continue;
+    const s = Math.hypot(p[0] - e.position.x, p[1] - e.position.z) + Math.random() * 6; if (s < bs) { bs = s; best = { x: p[0], z: p[1] }; }
+  }
+  return best || sniperPerchGround(e);
+}
+function sniperPerchGround(e) {
+  const px = camera.position.x, pz = camera.position.z;
+  for (let t = 0; t < 24; t++) { const a = Math.random() * 6.283, d = rand(16, 26), x = px + Math.cos(a) * d, z = pz + Math.sin(a) * d; if (groundAt(x, z) !== 0 || !pointFree(GRIDS.small, x, z) || !segClear(x, z, px, pz, 0.15)) continue; return { x, z }; }
+  return null;
+}
+function lvGateSockets(n) {   // fixed beacon sockets (gate 1: two, gate 2: three)
+  return AR_SOCKETS.slice(0, n).map(p => ({ x: p[0], z: p[1] }));
+}
+// ---- minimap ----
+function lvDrawMmBoss(g) {
+  g.fillStyle = '#222d3a'; g.fillRect(mmX(AR.x0), mmZ(AR.z0), (AR.x1 - AR.x0) * MMS, (AR.z1 - AR.z0) * MMS); g.fillRect(mmX(-8), mmZ(28), 16 * MMS, 12 * MMS);
+  g.fillStyle = '#34465a'; for (const s of [1, -1]) g.fillRect(mmX(s > 0 ? AR_DECK.x0 : -AR_DECK.x1), mmZ(AR_DECK.z0), (AR_DECK.x1 - AR_DECK.x0) * MMS, (AR_DECK.z1 - AR_DECK.z0) * MMS);
+  g.fillStyle = '#7d8ea4';
+  for (const b of boxes) { if (b.kind === 'lock') continue; g.globalAlpha = b.kind === 'cover' ? 0.55 : b.rail ? 0.4 : 1; g.fillRect(mmX(b.x0), mmZ(b.z0), Math.max(1.2, (b.x1 - b.x0) * MMS), Math.max(1.2, (b.z1 - b.z0) * MMS)); g.globalAlpha = 1; }
+  for (const d of LV.doors) { g.fillStyle = d.locked ? '#ffa040' : '#66ddff'; g.fillRect(mmX(d.rect[0]) - 0.5, mmZ(d.rect[2]) - 0.5, Math.max(3, (d.rect[1] - d.rect[0]) * MMS + 1), Math.max(3, (d.rect[3] - d.rect[2]) * MMS + 1)); }
+}
+function lvMmBossExtras(g) {
+  if (LV.hazOn) { const c = (gt - LV.hazT0) % 8, live = c >= 2 && c < 7; g.fillStyle = live ? '#ff3a22' : '#ffa040'; g.globalAlpha = live ? 0.6 : 0.3; for (const s of AR_HAZ) g.fillRect(mmX(s[0]), mmZ(s[1]), (s[2] - s[0]) * MMS, (s[3] - s[1]) * MMS); g.globalAlpha = 1; }
+  const t = LV.wp; if (t) { const p = 0.5 + 0.5 * Math.sin(gt * 5); g.strokeStyle = '#ffa040'; g.lineWidth = 2; g.beginPath(); g.arc(mmX(t.x), mmZ(t.z), 5 + 2 * p, 0, 6.3); g.stroke(); }
+}
+
+// =====================================================================
+//  PG-1e (v10) STRIKE LOOT: the Relay Yard drop table (3 weapons + the Signalward armor set) for Strike 1.
+//  Legendary-only swap hooked into the existing drop paths (mini-boss kill, strike chests, caches, boss chest). No new item fields, no SAVE_VERSION bump:
+//  a swapped item is a normal Legendary whose name / base / perks are replaced; its tint is looked up by name at render time.
+// =====================================================================
+const STRIKE_TINT = { body: 0x8493a3, trim: 0x66ddff, glow: 0xffa040 };   // shared by every Signalward Relay Yard item
+const STRIKE_LOOT = {
+  fallen_outpost: {
+    weapons: [
+      { name: 'Shiftbell', base: 'rifle', A: ['lightmag', 'tacmag', 'accurized'], B: ['rapidhit', 'killclip', 'headseeker'], C: ['omolon'] },
+      { name: 'Freightbreaker', base: 'shotgun', A: ['fullchoke', 'quickdraw', 'lightmag'], B: ['openingshot', 'swashbuckler', 'killclip'], C: ['suros'] },
+      { name: 'Mastfall', base: 'rocket', A: ['extmag', 'quickdraw', 'lightmag'], B: ['subsistence', 'demolitionist', 'zenmoment'], C: ['vorpal'] }
+    ],
+    armor: { A: ['majorplate', 'loader', 'fleet'], B: ['siphon', 'superlink', 'surge'], C: ['fortify', 'edge'],
+      pieces: [['helmet', 'Signalward Helm'], ['arms', 'Signalward Gauntlets'], ['chest', 'Signalward Plate'], ['legs', 'Signalward Greaves'], ['classitem', 'Signalward Sash']] }
+  }
+};
+const STRIKE_LOOT_RATE = { mini: 0.20, chest: 0.12, boss: 0.35 };
+const STRIKE_DRY_LIMIT = 5;
+const STRIKE_DROPS_LINE = 'Shiftbell \u00B7 Freightbreaker \u00B7 Mastfall \u00B7 Signalward set';
+const STRIKE_LOOT_DBG = { spotlight: false, rate: null, log: [] };
+// every item (name) a strike can swap in
+function strikeLootEntries(id) {
+  const T = STRIKE_LOOT[id || 'fallen_outpost'], out = [];
+  for (const w of T.weapons) out.push({ name: w.name, kind: 'weapon', def: w });
+  for (const [slot, name] of T.armor.pieces) out.push({ name, kind: 'armor', slot, def: T.armor });
+  return out;
+}
+const STRIKE_ITEM_NAMES = (() => { const o = {}; for (const id of Object.keys(STRIKE_LOOT)) for (const e of strikeLootEntries(id)) o[e.name] = id; return o; })();
+const strikeTint = it => (it && it.rarity === 2 && STRIKE_ITEM_NAMES[it.name]) ? STRIKE_TINT : null;   // render-time lookup by name
+const bcol = it => { const t = strikeTint(it); return t ? hex(t.trim) : rcol(it); };
+const strikeOwned = (name) => inventory.some(o => o.name === name) || Object.values(equip).some(id => { const it = getItem(id); return it && it.name === name; });
+function strikeSpotlight() { if (STRIKE_LOOT_DBG.spotlight) return true; try { if (typeof featured === 'function') { const f = featured(); return !!(f && f.id === STRIKE.strikeId); } } catch (e) {} return false; }
+// apply an entry's name/base/perks onto a legendary item (only name, base and perks change; power, rarity, stats, element stay as rolled)
+function strikeApplyEntry(it, ent) {
+  const pw0 = it.power;
+  if (ent.kind === 'weapon') {
+    const d = ent.def, w = makeWeapon(d.base, 2, it.power);
+    // keep the rolled weapon's own numbers, replace identity + perks
+    w.id = it.id; w.name = d.name; w.perks = [];
+    for (const col of [d.A, d.B, d.C]) { const ok = col.filter(id => PERKS[id] && perkFits(PERKS[id], w)); if (ok.length) addPerk(w, pick(ok)); }
+    sortPerks(w); Object.keys(w).forEach(k => { it[k] = w[k]; });
+  } else {
+    const d = ent.def, a = makeArmor(ent.slot, 2, it.power);
+    a.id = it.id; a.name = ent.name; a.perks = [];
+    for (const col of [d.A, d.B, d.C]) { const ok = col.filter(id => APERKS[id]); if (ok.length) addPerk(a, pick(ok)); }
+    sortPerks(a); Object.keys(a).forEach(k => { it[k] = a[k]; });
+  }
+  it.power = pw0; it.rarity = 2;
+  return it;
+}
+// strikeLootSwap(item, source): source = 'mini' | 'chest' | 'boss'. Returns the (possibly replaced) item.
+function strikeLootSwap(it, source) {
+  if (!it || it.rarity !== 2 || it.kind === undefined) return it;
+  const sid = STRIKE.strikeId || 'fallen_outpost'; if (!STRIKE_LOOT[sid]) return it;
+  const rate = (STRIKE_LOOT_DBG.rate !== null ? STRIKE_LOOT_DBG.rate : (STRIKE_LOOT_RATE[source] || 0)) * (strikeSpotlight() ? 2 : 1);
+  let ents = strikeLootEntries(sid).filter(e => it.kind === 'weapon' ? e.kind === 'weapon' : (e.kind === 'armor' && e.slot === it.slot)), forced = false;   // a weapon drop becomes a strike weapon, an armor drop becomes the Signalward piece of its own slot
+  if (!ents.length) return it;
+  const dry = (LV.strikeDry | 0) >= STRIKE_DRY_LIMIT;
+  const roll = Math.random() < Math.min(1, rate);
+  if (!roll && !dry) return it;
+  if (!roll && dry) forced = true;
+  // pick an entry; duplicate protection: if the pick is owned, p = 0.5 redirect to an unowned entry (when one exists)
+  let ent = pick(ents);
+  if (strikeOwned(ent.name)) { const un = ents.filter(e => !strikeOwned(e.name)); if (un.length && Math.random() < 0.5) ent = pick(un); }
+  strikeApplyEntry(it, ent);
+  LV.strikeDry = 0; LV.strikeGot = true;
+  STRIKE_LOOT_DBG.log.push({ source, name: ent.name, forced }); if (STRIKE_LOOT_DBG.log.length > 200) STRIKE_LOOT_DBG.log.shift();
+  toast('Relay Yard drop: ' + it.name, '#66ddff');
+  return it;
+}
+// called when a strike clears (stage-4 boss dead): converts the dry streak counter. strikeDry counts consecutive strike clears without a strike item.
+function strikeClearedLoot() {
+  if (LV.strikeGot) { LV.strikeDry = 0; } else LV.strikeDry = (LV.strikeDry | 0) + 1;
+  LV.strikeGot = false;
+}
+
+// =====================================================================
+//  PG-1 (v10) SEGMENT FLOW: traverse -> objective -> Bulwark mini-boss -> exit door, x3, then the antechamber -> boss arena.
+//  Stage k = segment k. LV.flow holds the per-segment state; STRIKE.stageState keeps its v9 meaning (intro / active / clear ...).
+// =====================================================================
+const BULWARK = [null, { name: 'Gate-Warden Vossk', squires: 2, more: 2, mk: false }, { name: 'Plateward Hroth', squires: 4, more: 0, mk: false }, { name: 'Shieldmarshal Dagna', squires: 4, more: 0, mk: true }];
+Object.assign(LV, { flow: null, spawnRooms: [], caches: {}, wpEl: null, nextSeed: null, seg: null, genMs: 0, tickT: 0, mmPulse: 0 });
+
+function lvSegInfo(L) {
+  const seg = [null];
+  for (let k = 1; k <= 3; k++) {
+    const rooms = L.rooms.filter(r => r.seg === k);
+    const M = rooms.find(r => r.kind === 'M'), O = rooms.filter(r => r.kind === 'O').map(r => r.i), T = rooms.filter(r => r.kind === 'T').map(r => r.i);
+    const gate = L.doors.find(d => d.lock === 'gate' && d.b === M.i), exit = L.doors.find(d => d.lock === 'exit' && d.k === k);
+    const entry = k > 1 ? L.doors.find(d => d.lock === 'exit' && d.k === k - 1) : null;
+    seg.push({ k, T, O, M: M.i, gate: gate.i, exit: exit.i, entry: entry ? entry.i : -1, caches: L.rooms.filter(r => r.kind === 'C' && r.seg === k).map(r => r.i) });
+  }
+  return seg;
+}
+const lvDoorPoint = (d, dist) => ({ x: d.cx + d.dir[0] * dist, z: d.cz + d.dir[1] * dist });
+const lvYawFor = (dx, dz) => Math.atan2(-dx, -dz);
+function lvEntryPoint(stage) {   // where the player starts stage n (stage 1: the spawn marker; stage k: 3 m past door D_{k-1})
+  if (stage === 1) { const r = LV.rooms[0], m = r.m.player, d = LV.doors.find(x => x.a === 0) || LV.doors[0]; return { x: m[0], z: m[1], yaw: lvYawFor(d.dir[0], d.dir[1]) }; }
+  const sg = LV.seg[stage - 1], d = LV.doors[sg.exit], p = lvDoorPoint(d, 3.2); return { x: p.x, z: p.z, yaw: lvYawFor(d.dir[0], d.dir[1]) };
+}
+function lvStartStrike(stage) {
+  const S = STRIKE;
+  if (LV.on) levelDispose(true);
+  const seed = LV.nextSeed !== null ? LV.nextSeed : 'ry' + Math.floor(Math.random() * 1e9).toString(36);
+  LV.nextSeed = null; LV.genSeed = seed;
+  const L = lvBuild(seed); LV.seg = lvSegInfo(L); LV.genMs = L.ms; LV.caches = {}; LV.flow = null; LV.strikeDry = LV.strikeDry || 0;
+  lvMakeCaches();
+  S.cp = { x: 0, z: 0 };
+  if (stage >= 4) { lvEnterArenaDirect(); }   // QA / resume at the boss: skip straight to the arena frame
+  else { const e = lvEntryPoint(stage); camera.position.set(e.x, 1.6, e.z); yaw = e.yaw; pitch = 0; S.cp = { x: e.x, z: e.z }; LV.cur = -1; lvCull(true); }
+  player.velocity.set(0, 0, 0);
+}
+function lvMakeCaches() {
+  for (const r of LV.rooms) {
+    if (r.kind !== 'C') continue;
+    const c = buildChest(r.m.chest[0], r.m.chest[1], false); scene.remove(c.g); LV.group.add(c.g); r.meshes.push(c.g); c.room = r.i; LV.caches[r.i] = c; c.g.rotation.y = 0;
+  }
+}
+function lvOpenCache(c) {
+  const S = STRIKE; c.opened = true; c.openT = 0; c.glow.visible = true;
+  fx('burst', c.x, 1.0, c.z, 0xffd966, 4, 0.5, 0.6); fx('ring', c.x, 0.1, c.z, 0xffd966, 7, 0.7, 0.9); sweep(300, 900, 0.5, 'triangle', 0.1);
+  const it = rollStrikeItem(rollTable(CHEST_TABLE), player.power, S.tier, 'chest');
+  const cur = getItem(equip[it.slot]), before = cur ? cur.power : null;
+  if (it.rarity === 3 && (collection[it.exoticPerk] || inventory.some(o => o.exoticPerk === it.exoticPerk))) { addMats(0, 4, 0); toast('Duplicate exotic \u2192 +4 ' + NAMES.cores, '#c58cff'); }
+  else { if (addItem(it) && !equip[it.slot]) equipItem(it); showChestPop([{ it, delta: before === null ? null : it.power - before }]); }
+  LV.cacheItems = (LV.cacheItems || 0) + 1; if (qaEmit) qaEmit('cache', { stage: S.stage, item: it.name });
+  saveSoon();
+}
+// ---------------- stage hooks called from p5e.js ----------------
+function lvBeginStage(n, restart) {
+  const S = STRIKE; LV.introDone = false;
+  if (n >= 4) { LV.flow = { seg: 4, sub: 'ante', t0: gt }; lvBeginAnte(restart); return; }
+  const sg = LV.seg[n];
+  for (const d of LV.doors) { if (d.portal) continue; const dd = LV.L.doors[d.i]; if (dd.lock === 'none') lvSetDoor(d, false); }
+  lvSetDoor(LV.doors[sg.gate], true); lvSetDoor(LV.doors[sg.exit], true);
+  if (sg.entry >= 0) lvSetDoor(LV.doors[sg.entry], true);   // the door behind the player is shut
+  LV.flow = { seg: n, sub: 'travel', sg, objRooms: sg.O.slice(), objStarted: false, objDone: false, mini: null, miniDead: false, miniSpawned: false, wave2: false, t0: gt, kills0: S.kills };
+  LV.spawnRooms = []; S.limit = 0; S.zoneCount = 0;
+  S.cp = { x: camera.position.x, z: camera.position.z };
+}
+function lvBeginActive() {
+  const S = STRIKE; S.stageState = 'active'; S.activeT0 = gt; nextSpawnAt = gt;
+  if (S.stage >= 4) { lvBeginBossActive(); return; }
+  const F = LV.flow, sg = F.sg;
+  // light skirmishers in the traverse rooms
+  const types = S.stage === 1 ? ['dreg', 'dreg'] : S.stage === 2 ? ['dreg', 'vandal'] : ['vandal', 'dreg'];
+  for (const ri of sg.T) { const r = LV.rooms[ri], h = (r.m.hall || []).slice(0, 2); h.forEach((p, i) => { const e = spawnEnemy(types[i % 2], { x: p[0], z: p[1] }, { strike: true, idle: true, room: ri, instant: true }); e.scale.setScalar(1); }); }
+  for (const ci of sg.caches) { const r = LV.rooms[ci]; if (r.m.hall && !LV.caches[ci].guarded) { LV.caches[ci].guarded = true; const p = r.m.hall[0]; const e = spawnEnemy('dreg', { x: p[0], z: p[1] }, { strike: true, idle: true, room: ci, instant: true }); e.scale.setScalar(1); } }
+  if (LV.cur >= 0 && F.objRooms.includes(LV.cur)) lvStartObjective();
+}
+function lvIntroTick() { const S = STRIKE; if (S.stage >= 4) return LV.introDone; return gt >= S.stateT + 1.2; }
+function lvSentryPoints(ri, n) {
+  const r = LV.rooms[ri], pts = [];
+  for (const k of ['idle', 'hall', 'door']) for (const p of (r.m[k] || [])) pts.push(p);
+  return pts.slice(0, n);
+}
+function lvStartObjective() {
+  const S = STRIKE, F = LV.flow; if (F.objStarted || S.stageState !== 'active') return;
+  F.objStarted = true; F.objT0 = gt; LV.spawnRooms = [F.objRooms[0]]; const ri = F.objRooms[0];
+  if (S.stage === 1) {
+    const pts = lvSentryPoints(ri, 4), types = ['dreg', 'dreg', 'vandal', 'captain'];
+    pts.forEach((p, i) => { const e = spawnEnemy(types[i], { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
+    spawnQueue = shuffled(mkList({ dreg: 4, vandal: 2 })); S.objTotal = 10; S.limit = 0;
+    showBanner('CLEAR THE COURT', 'Eliminate all hostiles'); sweep(300, 600, 0.3, 'square', 0.05);
+  } else {
+    const two = S.stage === 3, zs = lvZoneSpot(1);
+    S.zoneCount = two ? 2 : 1; S.zoneIdx = 1; S.reinfDone = false; S.activeT0 = gt;
+    S.zone = makeZone(zs.x, zs.z, two ? 'RELAY 1/2' : 'RELAY');
+    S.limit = two ? 210 : 150; S.reinfEvery = two ? 14 : 12; S.reinfN = two ? 4 : 3; S.nextReinf = gt + S.reinfEvery;
+    S.specials = two ? [{ t: 60, type: 'knight' }, { t: 120, type: 'captain' }] : [{ t: 40, type: 'captain' }, { t: 100, type: 'captain' }];
+    spawnHook = zoneSpawnHook;
+    const types = shuffled(mkList(two ? { dreg: 3, vandal: 2 } : { dreg: 3, vandal: 2 }));
+    lvSentryPoints(ri, types.length).forEach((p, i) => { const e = spawnEnemy(types[i], { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
+    showBanner(two ? 'SECURE BOTH RELAYS' : 'HOLD THE RELAY', 'Stand in the ring until it is secured'); sweep(300, 600, 0.3, 'square', 0.05);
+  }
+  if (qaEmit) qaEmit('objective', { stage: S.stage, state: 'start' });
+}
+function lvZoneSpot(idx) {   // objective spot idx (1-based) of the current segment: the room's zone marker
+  const F = LV.flow, r = LV.rooms[F.objRooms[Math.min(idx, F.objRooms.length) - 1]]; const z = r.zone || r.m.hall[0] || [r.cx, r.cz]; return { x: z[0], z: z[1] };
+}
+function pickObjectiveSpot(idx) { if (LV.on && LV.flow && LV.flow.objRooms) return lvZoneSpot(idx || 1); const p = pickSpot(18, 26, []); return { x: p.x, z: p.z }; }
+function lvZoneAdvance() {   // zone 1 of 2 secured: relay 2 appears in the second objective room, with its own sentries
+  const F = LV.flow, S = STRIKE; if (F.objRooms.length < 2) return;
+  LV.spawnRooms = [F.objRooms[1]]; const ri = F.objRooms[1];
+  lvSentryPoints(ri, 3).forEach((p, i) => { const e = spawnEnemy(i ? 'vandal' : 'dreg', { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
+}
+function lvObjectiveDone() {
+  const S = STRIKE, F = LV.flow; if (F.objDone) return;
+  F.objDone = true; F.sub = 'mini'; routAll(); spawnQueue = []; LV.spawnRooms = [];
+  lvSetDoor(LV.doors[F.sg.gate], false);
+  addXP(Math.round((STAGE_XP[S.stage] || 0) * 0.4)); collectAllOrbs();
+  showBanner('OBJECTIVE COMPLETE', 'The gate is open \u2014 ' + BULWARK[S.stage].name + ' waits inside'); sweep(500, 1000, 0.6, 'triangle', 0.1);
+  if (qaEmit) qaEmit('objective', { stage: S.stage, state: 'done' });
+}
+function lvSpawnMini() {
+  const S = STRIKE, F = LV.flow, B = BULWARK[S.stage], r = LV.rooms[F.sg.M]; F.miniSpawned = true; F.sub = 'fight';
+  lvSetDoor(LV.doors[F.sg.gate], true);
+  const e = spawnEnemy('knight', { x: r.m.mini[0], z: r.m.mini[1] }, { strike: true, mini: 'bulwark', name: B.name, hp: 520 * 1.4, shield: 300 * 1.3, room: r.i, instant: false });
+  const u = e.userData; u.face = Math.atan2(camera.position.x - e.position.x, camera.position.z - e.position.z); u.maxShieldInit = u.maxShield; u.moreAt = B.more ? 0.5 : -1; u.seg = S.stage; F.mini = e;
+  LV.spawnRooms = [r.i];
+  lvSpawnSquires(B.squires);
+  if (B.mk) { const p = r.m.hall[0]; const m = spawnEnemy('sniper', { x: p[0], z: p[1] }, { strike: true, room: r.i, instant: false }); m.userData.squire = true; }
+  // front plate indicator
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.3, 0.14), new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.38, depthWrite: false }));
+  plate.position.set(0, 1.5, 0.95); plate.raycast = noopRaycast; e.add(plate); u.plate = plate;
+  showBanner(B.name.toUpperCase(), 'Mini-boss \u2022 break the plate'); sweep(120, 60, 0.7, 'sawtooth', 0.12);
+  if (qaEmit) qaEmit('mini', { stage: S.stage, name: B.name });
+}
+function lvSpawnSquires(n) {
+  const r = LV.rooms[LV.flow.sg.M], pts = (r.m.door || []).concat(r.m.hall || []);
+  for (let i = 0; i < n; i++) { const p = pts[(i + (LV.flow.wave2 ? 2 : 0)) % pts.length]; const e = spawnEnemy('dreg', { x: p[0], z: p[1] }, { strike: true, room: r.i }); e.userData.squire = true; }
+}
+// plate maths (hooks from p3.js dealDamage / shieldBroken and p4.js updateEnemy)
+function miniPlateMult(e) {
+  const u = e.userData; if (!(u.mini && u.shield > 0)) return 1;
+  const fx_ = Math.sin(u.face), fz = Math.cos(u.face), dx = camera.position.x - e.position.x, dz = camera.position.z - e.position.z, d = Math.hypot(dx, dz) || 1;
+  return (fx_ * dx + fz * dz) / d >= 0.5 ? 0.65 : 1;   // within +-60 deg of the front: x0.65 while the shield is up
+}
+function miniShieldBroken(e) {
+  const u = e.userData; u.staggerUntil = gt + 3; u.vulnUntil = gt + 3; u.vulnMult = 1.25; if (u.plate) u.plate.visible = false;
+  showBanner('PLATE BROKEN', 'Hit it now'); fx('ring', e.position.x, 0.1, e.position.z, 0x66ddff, 5, 0.5, 0.9); sweep(900, 200, 0.4, 'triangle', 0.1);
+}
+function miniFace(e, u, dt) {
+  const want = Math.atan2(camera.position.x - e.position.x, camera.position.z - e.position.z);
+  let d = want - u.face; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  const rate = (u.staggerUntil && gt < u.staggerUntil) ? 0 : 1.1;
+  u.face += Math.max(-rate * dt, Math.min(rate * dt, d)); e.rotation.y = u.face;
+}
+function lvMiniTick(dt) {
+  const F = LV.flow, e = F.mini; if (!e || e.userData.dead) return; const u = e.userData;
+  const alive = enemies.some(o => o.userData.squire && !o.userData.dead);
+  if (u.shield > 0 && alive && u.shield < u.maxShield) u.shield = Math.min(u.maxShield, u.shield + u.maxShield * 0.02 * dt);   // plate regeneration while a squire lives
+  if (u.plate) u.plate.visible = u.shield > 0;
+  if (u.moreAt > 0 && u.maxShield > 0 && u.shield <= u.maxShield * u.moreAt) { u.moreAt = -1; F.wave2 = true; lvSpawnSquires(BULWARK[STRIKE.stage].more); toast('Squires reinforce the Bulwark', '#ffd45a'); }
+}
+function lvMiniKilled(e, x, z) {
+  const F = LV.flow; if (!F || F.mini !== e) return; F.miniDead = true;
+  const S = STRIKE, rar = rollTable([0, 55, 45, 0]), it = rollStrikeItem(rar, player.power, S.tier, 'mini'); spawnLoot(it, x, z);
+  fx('ring', x, 0.1, z, 0x66ddff, 9, 0.8, 0.9);
+}
+// ---------------- per-frame ----------------
+function lvTick(dt) {
+  LV.tickT += dt; lvAnteTick(dt);
+  if (!LV.boss) {
+    if (LV.tickT > 0.1) { LV.tickT = 0; lvCull(); lvPlaceEnemies(); }
+    lvKeepIn();
+    // doors the player has walked through re-lock behind them (gate/exit/portal) - handled by the flow; caches
+    for (const k in LV.caches) { const c = LV.caches[k]; if (!c.opened) { c.ring.scale.setScalar(2.4 * (1 + 0.1 * Math.sin(gt * 3))); if (Math.hypot(camera.position.x - c.x, camera.position.z - c.z) < 2.4 && !player.dead && STRIKE.stageState !== 'over') lvOpenCache(c); } else { c.openT += dt; c.lid.rotation.x = -1.9 * Math.min(1, c.openT / 0.45); if (c.beam.visible && c.openT > 0.6) { c.beam.visible = false; c.ring.visible = false; for (const gm of c.gems) gm.visible = false; } } if (!c.opened) c.gems.forEach((gm, i) => { const a = gt * 2 + i * 2.094; gm.position.set(Math.cos(a) * 0.9, 1.8 + Math.sin(gt * 3 + i) * 0.15, Math.sin(a) * 0.9); }); }
+  } else if (typeof lvBossTick === 'function') lvBossTick(dt);
+  lvWaypointTick();
+}
+function lvPlaceEnemies() {
+  const vis = LV.vis; if (!vis) return;
+  for (const e of enemies) { const r = lvRoomAt(e.position.x, e.position.z), v = r < 0 || vis.has(r); if (e.visible !== v) e.visible = v; }
+}
+function lvFlowEnter(i) {
+  const S = STRIKE, F = LV.flow; if (!inStrike() || !F || F.seg > 3) return;
+  if (S.stageState === 'active' && F.sub === 'travel' && F.objRooms.includes(i)) lvStartObjective();
+}
+function lvActiveTick(dt) {
+  const S = STRIKE, F = LV.flow; if (!F) return;
+  if (S.stage >= 4) { lvBossActiveTick(dt); return; }
+  if (F.sub === 'travel') { if (LV.cur >= 0 && F.objRooms.includes(LV.cur)) lvStartObjective(); }
+  if (F.objStarted && !F.objDone) {
+    F.sub = 'obj';
+    if (S.stage === 1) {
+      pumpSpawns(8, stageOpts);
+      let alive = 0; for (const e of enemies) if (e.userData.obj) alive++;
+      if (!spawnQueue.length && alive === 0) lvObjectiveDone();
+    } else {
+      const t = gt - S.activeT0;
+      if (gt >= S.nextReinf) { S.nextReinf += S.reinfEvery; for (let i = 0; i < S.reinfN; i++) spawnQueue.push(Math.random() < 0.5 ? 'dreg' : 'vandal'); if (!S.reinfDone) { S.reinfDone = true; S.goalLeft = 4; } }
+      while (S.specials.length && t >= S.specials[0].t) spawnQueue.push(S.specials.shift().type);
+      pumpSpawns(8, stageOpts);
+      updateZone(dt);
+      if (S.stageState === 'active' && S.zone && !S.zone.done && t >= S.limit) stageTimeout();
+    }
+  } else if (F.objDone && !F.miniSpawned) {
+    const g = LV.doors[F.sg.gate], p = camera.position;
+    if ((p.x - g.cx) * g.dir[0] + (p.z - g.cz) * g.dir[1] >= 3.0 && LV.cur === F.sg.M) lvSpawnMini();
+  } else if (F.miniSpawned && !F.miniDead) { pumpSpawns(6, stageOpts); lvMiniTick(dt); }
+  if (F.miniDead && S.stageState === 'active') {
+    F.sub = 'done'; routAll(); lvSetDoor(LV.doors[F.sg.exit], false);
+    showBanner(BULWARK[S.stage].name.toUpperCase() + ' DOWN', 'The exit door is open'); stageClear();
+  }
+}
+function lvClearTick() {
+  const S = STRIKE, F = LV.flow; if (!F || S.stage >= 4) return;
+  const d = LV.doors[F.sg.exit], p = camera.position;
+  if (!player.dead && (p.x - d.cx) * d.dir[0] + (p.z - d.cz) * d.dir[1] >= 3.0 && Math.abs(d.horiz ? p.x - d.cx : p.z - d.cz) < d.width / 2 + 1) nextStage();
+}
+// ---------------- HUD / waypoint / minimap ----------------
+function lvHudInfo() {
+  const S = STRIKE, F = LV.flow; if (!LV.on || !F) return null;
+  const def = STRIKE_DEFS[S.strikeId]; let title = def.stageNames[S.stage - 1], pct = 0, st = '', tm = '', red = false;
+  if (S.stage >= 4) { if (typeof lvBossHud === 'function') return lvBossHud(title); return null; }
+  if (S.stageState === 'clear') return { title: 'STAGE CLEAR', pct: 100, st: 'GO THROUGH THE EXIT', tm: '', red: false };
+  if (S.stageState === 'intro') return { title, pct: 0, st: 'GET READY', tm: '', red: false };
+  if (F.sub === 'travel') st = 'REACH THE OBJECTIVE';
+  else if (F.sub === 'obj') {
+    if (S.stage === 1) { let alive = 0; for (const e of enemies) if (e.userData.obj) alive++; const left = spawnQueue.length + alive; pct = (10 - left) * 10; st = left + ' HOSTILES'; }
+    else { const zn = S.zone; if (zn) { title = S.zoneCount > 1 ? 'RELAY ' + S.zoneIdx + '/2' : 'HOLD THE RELAY'; pct = zn.p; st = zn.status; } const left = S.limit - (gt - S.activeT0); tm = fmtTime(left); red = left < 30; }
+  } else if (F.sub === 'mini') { st = 'ENTER THE GATE'; pct = 100; }
+  else if (F.sub === 'fight' && F.mini && !F.mini.userData.dead) { const u = F.mini.userData; title = BULWARK[S.stage].name.toUpperCase(); pct = Math.round(100 * (u.hp + u.shield) / (u.maxHp + u.maxShield)); st = u.shield > 0 ? 'PLATE UP \u2022 FLANK IT' : (gt < u.staggerUntil ? 'STAGGERED' : 'PLATE DOWN'); }
+  return { title, pct, st, tm, red };
+}
+function lvWpTarget() {
+  const S = STRIKE, F = LV.flow; if (!LV.on || LV.boss || !F || S.stageState === 'over' || S.stageState === 'intro') return null;
+  let goal = -1, label = '', pt = null;
+  if (S.stage >= 4) { const an = LV.L.rooms.find(r => r.role === 'ante'); if (!an || LV.introDone) return null; goal = an.i; label = 'ARENA'; const h = LV.rooms[goal].m.hall[0]; pt = { x: h[0], z: h[1] }; }
+  else if (S.stageState === 'clear' || F.sub === 'done') { const d = LV.doors[F.sg.exit]; goal = d.a; label = 'EXIT'; pt = { x: d.cx, z: d.cz }; if (LV.cur === d.a) return { x: d.cx, z: d.cz, label, door: true }; }
+  else if (F.sub === 'travel') { goal = F.objRooms[0]; label = 'OBJECTIVE'; const r = LV.rooms[goal]; pt = r.zone ? { x: r.zone[0], z: r.zone[1] } : { x: r.cx, z: r.cz }; }
+  else if (F.sub === 'obj') { if (S.zone && !S.zone.done) { goal = lvRoomAt(S.zone.x, S.zone.z); label = 'RELAY'; pt = { x: S.zone.x, z: S.zone.z }; } else return null; }
+  else if (F.sub === 'mini') { goal = F.sg.M; label = 'GATE'; const g = LV.doors[F.sg.gate]; pt = lvDoorPoint(g, 4); }
+  else return null;
+  if (goal < 0) return null;
+  if (LV.cur === goal || LV.cur < 0) return Math.hypot(camera.position.x - pt.x, camera.position.z - pt.z) < 7 ? null : { x: pt.x, z: pt.z, label };
+  // BFS over the room graph: first door on the route
+  const prev = new Array(LV.rooms.length).fill(null); prev[LV.cur] = [-1, -1]; const q = [LV.cur];
+  while (q.length) { const c = q.shift(); if (c === goal) break; for (const [n, di] of LV.rooms[c].nb) if (!prev[n]) { prev[n] = [c, di]; q.push(n); } }
+  if (!prev[goal]) return null;
+  let c = goal, di = -1; while (prev[c][0] !== LV.cur && prev[c][0] >= 0) c = prev[c][0]; di = prev[c][1];
+  const d = LV.doors[di]; return { x: d.cx, z: d.cz, label: label + ' \u25B6', door: true, di };
+}
+function lvWaypointTick() {
+  if (!LV.wpEl) { const el = document.createElement('div'); el.className = 'mk'; el.style.color = '#ffa040'; $('markers').appendChild(el); LV.wpEl = el; }
+  const el = LV.wpEl, S = STRIKE, t = (inStrike() && !paused) ? lvWpTarget() : null; LV.wp = t;
+  if (!t) { if (el._d !== 'none') { el.style.display = 'none'; el._d = 'none'; } return; }
+  const d = Math.hypot(camera.position.x - t.x, camera.position.z - t.z); placeMarker(el, t.x, t.door ? 3.0 : 3.5, t.z, t.label + ' ' + Math.round(d) + 'm', true);
+}
+function lvMmExtras(g) {
+  if (!LV.on || LV.boss) { if (LV.boss && typeof lvMmBossExtras === 'function') lvMmBossExtras(g); return; }
+  const t = LV.wp; if (t) { const p = 0.5 + 0.5 * Math.sin(gt * 5); g.strokeStyle = '#ffa040'; g.lineWidth = 2; g.globalAlpha = 0.6 + 0.4 * p; g.beginPath(); g.arc(mmX(t.x), mmZ(t.z), 5 + 2 * p, 0, 6.3); g.stroke(); g.globalAlpha = 1; }
+}
+// ---------------- spawn / teleport helpers ----------------
+function lvGotoRoom(i) {
+  const r = LV.rooms[i]; if (!r) return false; const m = r.m.player || (r.m.hall && r.m.hall[0]) || [r.cx, r.cz];
+  camera.position.set(m[0], 1.6, m[1]); player.velocity.set(0, 0, 0); LV.cur = -1; LV.lastGood = null; lvCull(true); return true;
+}
+// QA / debug: complete the current segment's remaining beats and hop to the next stage's entry
+function lvSkip() {
+  const S = STRIKE, F = LV.flow; if (!LV.on || !F) return;
+  if (S.stageState === 'intro') beginActive();
+  if (S.stage >= 4) {
+    if (S.stageState !== 'active') return;
+    if (!LV.boss) lvEnterArenaDirect();
+    if (!enemies.some(e => e.userData.type === 'boss')) { bossQueue = []; spawnQueue = []; const be = spawnEnemy('boss', null, stageOpts('boss')); be.userData.spawnUntil = 0; }
+    for (const e of enemies.slice()) { const u = e.userData; u.invuln = false; u.gateFloor = 0; killEnemy(e, {}); }
+    if (!S.bossSeen) S.bossSeen = true; completeStrike(); return;
+  }
+  if (S.stageState === 'active') {
+    if (!F.objStarted) { lvGotoRoom(F.objRooms[0]); lvStartObjective(); }
+    if (!F.objDone) { if (S.zone && !S.zone.done) { S.zone.done = true; S.zone.p = 100; S.zonesHeld += S.zoneCount; } for (const e of enemies.slice()) removeEnemy(e); spawnQueue = []; lvObjectiveDone(); }
+    if (!F.miniSpawned) { const g = LV.doors[F.sg.gate], p = lvDoorPoint(g, 3.5); camera.position.set(p.x, 1.6, p.z); LV.cur = -1; lvCull(true); lvSpawnMini(); }
+    const m = F.mini; if (m && !m.userData.dead) { m.userData.hp = 1; m.userData.shield = 0; dealDamage(m, 99999, { silent: true }); }
+    F.miniDead = true; lvActiveTick(0);
+  }
+  if (S.stageState === 'clear') { const e = lvEntryPoint(S.stage + 1); camera.position.set(e.x, 1.6, e.z); LV.cur = -1; LV.lastGood = null; lvCull(true); nextStage(); }
+}
+
+// ---- QA / debug hooks (only when ?debug=1 / ?qa=1 created window.DFPS) ----
+if (window.DFPS) Object.assign(window.DFPS, {
+  level: () => LV.L ? { on: LV.on, boss: !!LV.boss, seed: LV.seedStr, rooms: LV.rooms.map(r => ({ i: r.i, name: r.name, kind: r.kind, seg: r.seg, cx: r.cx, cz: r.cz })), doors: LV.doors.map(d => ({ i: d.i, a: d.a, b: d.b, lock: d.lock, kind: d.kind })), cur: LV.cur, visited: [...LV.visited], sub: LV.flow && LV.flow.sub } : null,
+  levelStats: () => ({ rooms: LV.rooms.length, doors: LV.doors.length, genMs: LV.genMs, buildMs: LV.buildMs, arenaMs: LV.arenaMs, swapMs: LV.swapMs, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geoms: renderer.info.memory.geometries, strikeDry: LV.strikeDry }),
+  gotoRoom: i => lvGotoRoom(i),
+  perf: n => new Promise(res => { const a = []; let last = performance.now(), c = 0, maxCalls = 0; const f = () => { const t = performance.now(); a.push(t - last); last = t; maxCalls = Math.max(maxCalls, renderer.info.render.calls); if (++c < (n || 120)) requestAnimationFrame(f); else { const s = a.slice(1).sort((x, y) => x - y); res({ n: s.length, avg: s.reduce((x, y) => x + y, 0) / s.length, p95: s[Math.floor(s.length * 0.95)], max: s[s.length - 1], maxCalls, lights: scene.children.filter(o => o.isLight).length, pointLights: scene.children.filter(o => o.isPointLight).length }); } }; requestAnimationFrame(f); }),
+  loot: { swap: (it, src) => strikeLootSwap(it, src), dbg: STRIKE_LOOT_DBG, entries: () => STRIKE_LOOT.fallen_outpost, dry: n => { if (n !== undefined) LV.strikeDry = n; return LV.strikeDry; } }
+});
+
+// =====================================================================
 //  INVENTORY UI
 // =====================================================================
 let invFilter = 'weapons', selId = null, dmConfirm = null, dmTimer = null;
@@ -5080,7 +6394,7 @@ function renderInventory() {
   for (const s of Object.keys(equip)) {
     const it = getItem(equip[s]);
     const d = ce('div', 'slot', '<b>' + SLOT_LABEL[s] + '</b>' + (it ? '<span style="color:' + rcol(it) + '">' + it.name + '</span> ' + fmtN(it.power) : '<span style="color:#666">empty</span>'));
-    if (it) d.style.borderColor = rcol(it);
+    if (it) d.style.borderColor = bcol(it);
     d.onclick = () => { if (it) { invFilter = it.slot; selId = it.id; renderInventory(); } };
     eq.appendChild(d);
   }
@@ -5116,7 +6430,7 @@ function renderInventory() {
       const extra = perks ? perks : (it.kind === 'armor' ? 'Res ' + fmtN(it.stats.res) + ' / Rec ' + fmtN(it.stats.rec) + ' / Mob ' + fmtN(it.stats.mob) : '');
       const eqd = isEquipped(it);
       const row = ce('div', 'inv-item' + (eqd ? ' equipped' : '') + (it.id === selId ? ' sel' : ''));
-      row.style.borderLeftColor = rcol(it);
+      row.style.borderLeftColor = bcol(it);
       row.innerHTML = '<div class="main"><b style="color:' + rcol(it) + '">' + it.name + '</b>' + (eqd ? '<span class="tag">EQUIPPED</span>' : '') +
         '<br><small>' + RARITIES[it.rarity].name + ' &bull; PWR <b style="color:#ffd45a">' + fmtN(it.power) + '</b>' + delta + (it.rarity === 3 ? ' &bull; <span style="color:#f0c830">Lv ' + exoLv(it) + '/' + EXO_MAXLV + (exoXpReady(it) ? ' \u2191' : '') + '</span>' : '') + (it.kind === 'weapon' ? ' &bull; ' + ELEMENTS[it.element].name : '') + '</small>' +
         (extra ? '<br><small>' + extra + '</small>' : '') + '</div>';
@@ -5939,7 +7253,9 @@ function update(dt) {
   if (!player.dead) { camera.position.x += mx * spd * dt; camera.position.z += mz * spd * dt; pushOut(camera.position, 0.45); }
   if (!player.grounded) player.velocity.y -= 41.4 * dt;
   camera.position.y += player.velocity.y * dt;
-  if (camera.position.y <= 1.6) { camera.position.y = 1.6; player.grounded = true; player.jumps = 2; player.velocity.y = 0; }
+  const fl = 1.6 + groundAt(camera.position.x, camera.position.z);
+  if (player.grounded && player.velocity.y <= 0 && camera.position.y > fl && camera.position.y - fl < 0.3) camera.position.y = fl;   // v10: follow ramps down without hopping
+  if (camera.position.y <= fl) { camera.position.y = fl; player.grounded = true; player.jumps = 2; player.velocity.y = 0; }
   else player.grounded = false;
   // weapons
   kick = Math.max(0, kick - dt * 1.2); flashT -= dt; if (flashMesh && flashT <= 0) flashMesh.visible = false;
@@ -6003,7 +7319,7 @@ if (/[?&]qa=1(&|#|$)/.test(location.search)) (function () {
   const realRandom = Math.random;
   let seed = null, god = false, scale = 1;
   const listeners = [], log = [];
-  const EVENTS = ['kill', 'death', 'waveStart', 'waveEnd', 'stageStart', 'stageEnd', 'perkProc', 'exoticProc'];
+  const EVENTS = ['kill', 'death', 'waveStart', 'waveEnd', 'stageStart', 'stageEnd', 'objective', 'mini', 'cache', 'perkProc', 'exoticProc'];
   qaEmit = (type, data) => {
     const ev = Object.assign({ type, t: Math.round(gt * 100) / 100 }, data || {});
     log.push(ev); if (log.length > 500) log.shift();
