@@ -11,8 +11,8 @@
 <title>Dungeon FPS</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body { margin: 0; overflow: hidden; background: #111; font-family: system-ui, Arial, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
-#ui { position: absolute; top: max(120px, calc(env(safe-area-inset-top) + 110px)); left: 12px; color: #fff; z-index: 100; pointer-events: none; font-size: 12px; text-shadow: 0 1px 2px #000; line-height: 1.35; }
+body { margin: 0; overflow: hidden; background: #111; font-family: system-ui, Arial, sans-serif; touch-action: none; user-select: none; -webkit-touch-callout: none; -webkit-user-select: none; }
+#ui { position: absolute; top: max(120px, calc(env(safe-area-inset-top) + 110px)); left: calc(12px + var(--hudx, 0px)); color: #fff; z-index: 100; pointer-events: none; font-size: 12px; text-shadow: 0 1px 2px #000; line-height: 1.35; }
 #status { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px; color: #0f0; z-index: 100; pointer-events: none; font-size: 15px; font-weight: 600; text-shadow: 0 1px 2px #000; }
 #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 2px solid rgba(255,255,255,0.9); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 90; }
 #crosshair.hit { border-color: #ff4444; }
@@ -27,7 +27,7 @@ body { margin: 0; overflow: hidden; background: #111; font-family: system-ui, Ar
 #look-zone { position: absolute; top: 0; right: 0; width: 55%; height: 100%; z-index: 40; }
 #btn-container { position: absolute; inset: 0; pointer-events: none; z-index: 50; }
 
-.btn { position: absolute; pointer-events: auto; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; user-select: none; text-align: center; border: 2px solid rgba(255,255,255,0.55); opacity: 0.4; transition: opacity 0.08s; touch-action: none; }
+.btn { position: absolute; pointer-events: auto; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; -webkit-touch-callout: none; user-select: none; text-align: center; border: 2px solid rgba(255,255,255,0.55); opacity: 0.4; transition: opacity 0.08s; touch-action: none; }
 .btn::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; }
 .btn.super, .btn.ability, .btn.swap { font-size: 10px; }
 body.gp #btn-container, body.gp #joy-base, body.gp #pause-btn, body.gp #fullscreen-btn { visibility: hidden !important; }
@@ -36,6 +36,7 @@ body.gp #btn-container, body.gp #joy-base, body.gp #pause-btn, body.gp #fullscre
 #gp-bar b { background: #ffe066; color: #000; border-radius: 9px; padding: 1px 7px; margin-right: 2px; }
 #prompt-btn[data-gp]::before { content: attr(data-gp) " \00b7  "; font-weight: 800; color: #ffe066; }
 .btn .ring { display: none; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; background: conic-gradient(#ffe066 var(--p, 0deg), rgba(255,255,255,0.12) 0); -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); mask: radial-gradient(circle, transparent 60%, #000 62%); }
+.btn.nudge .ring { display: block; --p: 360deg; background: #ffe066; animation: btnnudge .5s ease-out; } @keyframes btnnudge { 0% { opacity: 1; transform: scale(1.0); } 60% { opacity: .9; transform: scale(1.18); } 100% { opacity: 0; transform: scale(1.3); } }
 .btn.holding .ring { display: block; } .btn.ready .ring { background: #7dff9a; }
 #weapon { pointer-events: auto; touch-action: none; padding: 4px 6px 4px 0; }
 .btn.down { opacity: 0.9 !important; }
@@ -46,7 +47,7 @@ body.gp #btn-container, body.gp #joy-base, body.gp #pause-btn, body.gp #fullscre
 
 .btn.swap { background: rgba(60,160,90,0.85); opacity: 0.38; }
 .btn.super { display: none; background: rgba(255,200,0,0.95); color: #000; opacity: 0.9; }
-#pause-btn { position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: 12px; width: 48px; height: 48px; background: rgba(80,80,80,0.7); border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; z-index: 110; border: 2px solid rgba(255,255,255,0.3); user-select: none; }
+#pause-btn { position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: calc(12px + var(--hudx, 0px)); width: 48px; height: 48px; background: rgba(80,80,80,0.7); border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; z-index: 110; border: 2px solid rgba(255,255,255,0.3); user-select: none; }
 #pause-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); color: #fff; z-index: 200; flex-direction: column; align-items: center; justify-content: center; }
 button { font-family: inherit; }
 #pause-overlay button, #inventory-overlay button.pbtn { margin: 6px; padding: 12px 26px; font-size: 16px; background: #333; color: #fff; border: 1px solid #555; border-radius: 8px; }
@@ -63,8 +64,8 @@ button { font-family: inherit; }
 .eb.major { width: 58px; height: 7px; border-color: #ffe14d; }
 .eb.major .h { background: #ffd000; }
 .eb .s { position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: #4cf; z-index: 2; }
-#level-ui { position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); right: 12px; color: #ff0; z-index: 100; pointer-events: none; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; text-align: right; line-height: 1.35; }
-#fullscreen-btn { display: none; position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: 70px; padding: 8px 12px; background: rgba(80,80,80,0.7); color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-size: 12px; z-index: 110; font-family: inherit; }
+#level-ui { position: absolute; top: max(58px, calc(env(safe-area-inset-top) + 50px)); right: 12px; color: #ff0; z-index: 100; pointer-events: none; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; text-align: right; line-height: 1.35; }
+#fullscreen-btn { display: none; position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: calc(70px + var(--hudx, 0px)); padding: 8px 12px; background: rgba(80,80,80,0.7); color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-size: 12px; z-index: 110; font-family: inherit; }
 #settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); color: #fff; z-index: 210; flex-direction: column; padding: max(10px, env(safe-area-inset-top)) 18px 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 #settings-overlay h2 { margin: 4px 0 6px; font-size: 18px; letter-spacing: 3px; }
 #set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; max-width: 760px; }
@@ -93,6 +94,10 @@ button { font-family: inherit; }
 @keyframes flashOut { to { opacity: 0; } }
 @keyframes bannerAnim { 0% { opacity: 0; transform: translateX(-50%) scale(1.3); } 12% { opacity: 1; transform: translateX(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 canvas { display: block; }
+/* v9 (S3): soft dark panel behind the bottom corner that holds the stick + HUD, so white HUD text keeps >= 4.5:1 contrast on bright arenas (Vex Garden). Under every HUD element, never intercepts touches. */
+#hud-shade { position: absolute; left: 0; bottom: 0; width: 44%; height: 66%; z-index: 20; pointer-events: none; background: radial-gradient(ellipse 100% 100% at 0% 100%, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.58) 40%, rgba(0,0,0,0.3) 72%, rgba(0,0,0,0) 100%); }
+#hud-shade.r { left: auto; right: 0; background: radial-gradient(ellipse 100% 100% at 100% 100%, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.58) 40%, rgba(0,0,0,0.3) 72%, rgba(0,0,0,0) 100%); }
+body.gp #hud-shade { display: none; }
 #orient-msg { display: none; position: fixed; inset: 0; background: #000; color: #fff; z-index: 999; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 18px; padding: 24px; }
 #hurt, #sflash { position: fixed; inset: 0; pointer-events: none; z-index: 95; opacity: 0; transition: opacity 0.25s; }
 #hurt { box-shadow: inset 0 0 90px 30px rgba(255,0,0,0.65); }
@@ -110,7 +115,7 @@ canvas { display: block; }
 #inv-top h2 { margin: 0; font-size: 16px; letter-spacing: 2px; }
 #inv-power { color: #ffd45a; font-weight: 800; font-size: 13px; flex: 1; min-width: 0; }
 .matsline { font-weight: 800; font-size: 13px; white-space: nowrap; }
-.mg { color: #8fe3ff; } .ms { color: #c58cff; } .mc { color: #ffd45a; }
+.mg { color: #8fe3ff; } .ms { color: #c58cff; } .mcx { color: #ffd45a; }
 .pcol { font-size: 9px; letter-spacing: 1px; color: #789; border: 1px solid #345; border-radius: 3px; padding: 0 3px; margin-left: 4px; vertical-align: middle; }
 .cat { color: #776; } .cat.on { color: #ffd45a; }
 .exopanel { background: #1a1d12; border: 1px solid #5a4a14; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
@@ -161,10 +166,11 @@ canvas { display: block; }
 #inv-detail button.danger.arm { background: #b8860b; color: #000; }
 #inv-detail button:disabled { opacity: 0.35; }
 /* materials / minimap / markers */
-#mats { margin-top: 2px; font-weight: 800; font-size: 12px; }
+#mats { position: absolute; top: max(6px, env(safe-area-inset-top)); left: 12px; z-index: 100; pointer-events: none; font-weight: 800; font-size: 11px; line-height: 1.12; white-space: nowrap; text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 7px rgba(0,0,0,0.75); }
+#mats span { display: block; }
 #mats.flash { animation: matsFlash 0.5s ease-out; transform-origin: left center; }
 @keyframes matsFlash { 0% { transform: scale(1.25); } 100% { transform: scale(1); } }
-#minimap { position: absolute; top: max(66px, calc(env(safe-area-inset-top) + 56px)); right: 158px; width: 72px; height: 72px; z-index: 99; pointer-events: none; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(10,14,20,0.55); }
+#minimap { position: absolute; top: calc(max(66px, calc(env(safe-area-inset-top) + 56px)) + var(--mmy, 0px)); right: 158px; width: 72px; height: 72px; z-index: 99; pointer-events: none; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: #0a0e14; }
 #markers { position: absolute; inset: 0; pointer-events: none; z-index: 85; overflow: hidden; }
 .mk { position: absolute; left: 0; top: 0; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap; will-change: transform; display: none; }
 .mk i { display: block; text-align: center; font-style: normal; font-size: 16px; line-height: 14px; }
@@ -236,7 +242,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 #res-panel button.go { background: #c98a10; color: #111; border-color: #ffd45a; }
 #fail-overlay h1 { font-size: 30px; letter-spacing: 6px; color: #ff5a4a; margin: 0 0 6px; }
 #fail-overlay .fi { color: #cde; margin-bottom: 10px; font-size: 14px; }
-/* v8: HUD legibility on light arenas (Vex Garden): double dark halo on all HUD text */
+/* v8: HUD legibility on light arenas (Lattice Atrium): double dark halo on all HUD text */
 #ui, #status, #level-ui, #perkhud, #revives, #objhud, #toast, #banner, .dmg, .mk { text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 7px rgba(0,0,0,0.75); }
 </style>
 </head>
@@ -247,6 +253,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 <div id="hitmarker"></div>
 <div id="pause-btn">II</div>
 <button id="fullscreen-btn" type="button">FULLSCREEN</button>
+<div id="mats"></div>   <!-- v9: currencies live in the free top-left strip (above the pause button), NOT in the #ui column, so they never sit over the left stick -->
 <div id="ui">
   <div id="power">POWER 100</div>
   <div class="bar"><i id="hp-fill"></i><span id="health">HP</span></div>
@@ -255,7 +262,6 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
   <div id="revives"></div>
   <div id="weapon">—</div>
   <div id="grenade">Grenade: Ready</div>
-  <div id="mats"></div>
   <div id="perkhud"></div>
 </div>
 <canvas id="minimap" width="144" height="144"></canvas>
@@ -268,6 +274,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 <div id="banner"></div>
 <div id="toast"></div>
 <div id="joystick-zone"></div>
+<div id="hud-shade"></div>
 <div id="joy-base"><div id="joystick-knob"></div></div>
 <div id="look-zone"></div>
 <div id="btn-container">
@@ -283,7 +290,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
   <div id="ios-hint">Tip: iPhone browsers have no full-screen mode. Tap Share &rarr; Add to Home Screen, then open Dungeon FPS from that icon for a bar-free view.</div>
   <div class="prow"><button id="resume-btn">Resume</button><button id="inv-btn">Inventory / Gear</button><button id="set-btn">Settings</button><button id="missions-btn">Missions</button></div>
   <div class="prow"><button id="export-btn" class="small">Export Save</button><button id="import-btn" class="small">Import Save</button><button id="reset-btn" class="small">Reset progress</button><button id="restore-btn" class="small">Restore backup save</button></div>
-  <div id="save-note">Each link has its own storage - use Export/Import to carry progress to a new version. Save format v5.</div>
+  <div id="save-note">Each link has its own storage - use Export/Import to carry progress to a new version. Save format v6.</div>
 </div>
 <div id="save-overlay">
   <h2 id="save-title">EXPORT SAVE</h2>
@@ -325,7 +332,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
   </div>
 </div>
 <div id="shop-overlay">
-  <div id="shop-top"><h2>QUARTERMASTER</h2><span class="sub">High-tier gear, refreshed every intermission</span><span id="shop-mats" class="matsline"></span><button id="shop-close" type="button">Close</button></div>
+  <div id="shop-top"><h2 id="shop-title">IRONMONGER</h2><span class="sub">High-tier gear, refreshed every intermission</span><span id="shop-mats" class="matsline"></span><button id="shop-close" type="button">Close</button></div>
   <div id="shop-grid"></div>
 </div>
 
@@ -344,10 +351,20 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 <script>
 'use strict';
 // =====================================================================
-//  DUNGEON FPS  -  Destiny-style prototype (single file, three.js r128)
+//  DUNGEON FPS  -  looter-shooter prototype (single file, three.js r128)
 // =====================================================================
-// v8 display names for NEW content. Swap here (internal ids - strike 'fallen_outpost', enemy types 'sniper'/'shriek'/'orb'/'beacon' - never change; saves use ids only).
-const NAMES = { strikeFallenOutpost: 'FALLEN OUTPOST', strikeFallenOutpostTag: 'Ruins', sniper: 'Marksman', shriek: 'Shriek', orb: 'Void Orb', beacon: 'Aegis Beacon', gate: 'AEGIS GATE', gateTag: 'AEGIS', gateDown: 'AEGIS DOWN', boss: 'Kral' };
+// DISPLAY NAMES (v9 rename pass). Every player-facing proper noun lives here or in a display field (ELEMENTS.*.name, ENEMY_DEFS.*.label, EXOTIC_*.name, PERKS.*.name, ...).
+// INTERNAL IDS NEVER CHANGE and saves store ids only: strike 'fallen_outpost', enemy types dreg/vandal/captain/knight/sniper/shriek/orb/beacon/boss, element ids arc/solar/void/kinetic,
+// mats keys glimmer/shards/ciphers, exotic/perk ids, arena ids. Old display names are only kept as legacy aliases (LEGACY_EXOTIC_NAMES, LEGACY_NAME_MAP) for migrating old saves.
+const NAMES = {
+  strikeOutpost: 'TARNHIDE OUTPOST', strikeOutpostTag: 'Ruins',
+  dreg: 'Scrapper', vandal: 'Slinger', captain: 'Bannerjack', knight: 'Plateback', sniper: 'Marksman', shriek: 'Fusebug', orb: 'Gloom Orb', beacon: 'Ward Beacon',
+  gate: 'WARD GATE', gateTag: 'WARD', gateDown: 'WARD DOWN',
+  boss: 'Braskk', bossFull: 'CHIEFTAIN BRASKK', bossTitle: 'Chieftain',
+  brass: 'Brass', core: 'Kiln Core', cores: 'Kiln Cores', coreWord: 'Core', coreShort: 'Cores', seal: 'Relic Seal', seals: 'Relic Seals',
+  vendor: 'IRONMONGER', empower: 'Reburnish', empowered: 'reburnished',
+  heartfire: 'Heartfire', spark: 'Spark'
+};
 const $ = id => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
 const randInt = (a, b) => Math.floor(rand(a, b + 1));
@@ -363,14 +380,14 @@ const DROP_BONUS = { 1: 7, 2: 7, 3: 6, 4: 5, 5: 5 };
 let qaEmit = null, qaGod = false, qaTimeScale = 1;   // QA API (only wired when ?qa=1; see p7.js / qa/QA-API.md)
 let debugPower = null;   // debug only (DFPS.setPower)
 const TIER_REVIVES = { 1: 5, 2: 5, 3: 4, 4: 3, 5: 2 };
-const PATROL_PAYOUT = 0.25;   // Patrol (endless waves) pays this fraction of the Glimmer / Shards it used to; Strikes are the main income
+const PATROL_PAYOUT = 0.25;   // Patrol (endless waves) pays this fraction of the Brass / Kiln Cores it used to; Strikes are the main income
 // TUNING: one place for the numbers most likely to be adjusted. (Exotic drop rates / shop exotics are deliberately kept at the v6 values for testing.)
 const TUNING = {
   exoticDropRate: { minor: 1, major: 5, boss: 25, wave: 8, chest: 10, bosschest: 20 },   // % chance that a drop of this tier is exotic (the other rarities are scaled to fill the rest)
   shopExotics: 2,            // exotics in each shop (1 = a random weapon-or-armor, 2 = one weapon + one armor)
   priceGrowth: 0.12,         // shop prices grow by this fraction of the wave-1 price per wave (v7 had 0.22, which halved late purchasing power; 0.12 keeps >= 3 legendaries per wave of income through wave 12)
-  bossHp: 1400, bossShield: 650,   // Warlord Kral base HP / shield before power scaling (Patrol - keeps its 25-45 s time-to-kill)
-  strikeBossHp: 2600, strikeBossShield: 1300,   // Kral in the Fallen Outpost strike: longer fight, the time comes from phases + Aegis beacon gates
+  bossHp: 1400, bossShield: 650,   // Chieftain Braskk base HP / shield before power scaling (Patrol - keeps its 25-45 s time-to-kill)
+  strikeBossHp: 2600, strikeBossShield: 1300,   // Braskk in the Tarnhide Outpost strike: longer fight, the time comes from phases + Ward beacon gates
   superBoss: 520,            // Super base damage vs bosses: ~17% of boss HP at wave 1, ~26% wave 4, ~31% wave 8 at point blank (v7 480 was ~28% at wave 8 but low early; v6 was 1500 vs a 2x boss)
   wolfSplitTime: 0.08,       // seconds after launch that Wolfhorn's rocket splits
   enemyDmgSlope: 0.0009      // enemy damage +0.09% per power above 100 (=+18% at the 300 cap); player HP only grows ~+10/level, so keep this mild
@@ -504,80 +521,80 @@ const RARITIES = [
   { name: 'Exotic', color: 0xf0c830, mult: 1.35 }
 ];
 const ELEMENTS = {
-  kinetic: { name: 'Kinetic', color: 0xdddddd },
-  arc: { name: 'Arc', color: 0x66ccff },
-  solar: { name: 'Solar', color: 0xff9933 },
-  void: { name: 'Void', color: 0xb066ff }
+  kinetic: { name: 'Ballistic', color: 0xdddddd },
+  arc: { name: 'Volt', color: 0x66ccff },
+  solar: { name: 'Cinder', color: 0xff9933 },
+  void: { name: 'Gloom', color: 0xb066ff }
 };
 const WEAPON_SLOTS = ['kinetic', 'energy', 'power'];
 const ARMOR_SLOTS = ['helmet', 'arms', 'chest', 'legs', 'classitem'];
-const SLOT_LABEL = { kinetic: 'Kinetic', energy: 'Energy', power: 'Power', helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs', classitem: 'Class Item' };
+const SLOT_LABEL = { kinetic: 'Primary', energy: 'Secondary', power: 'Heavy', helmet: 'Helmet', arms: 'Arms', chest: 'Chest', legs: 'Legs', classitem: 'Sash' };
 
 const WEAPON_BASES = {
-  pistol:  { name: 'Hand Cannon',     slot: 'kinetic', damage: 34,  rate: 0.30, auto: false, pellets: 1, range: 30, stab: 62, bloom: 0.020, w: 22 },
+  pistol:  { name: 'Heavy Pistol',     slot: 'kinetic', damage: 34,  rate: 0.30, auto: false, pellets: 1, range: 30, stab: 62, bloom: 0.020, w: 22 },
   rifle:   { name: 'Auto Rifle',      slot: 'kinetic', damage: 11,  rate: 0.09, auto: true,  pellets: 1, range: 26, stab: 55, bloom: 0.012, w: 22 },
   shotgun: { name: 'Shotgun',         slot: 'energy',  damage: 84,  rate: 0.80, auto: false, pellets: 7, range: 11, stab: 40, bloom: 0.030, w: 16 },
-  plasma:  { name: 'Plasma Rifle',    slot: 'energy',  damage: 26,  rate: 0.17, auto: true,  pellets: 1, range: 28, stab: 60, bloom: 0.013, w: 22 },
+  plasma:  { name: 'Ion Carbine',    slot: 'energy',  damage: 26,  rate: 0.17, auto: true,  pellets: 1, range: 28, stab: 60, bloom: 0.013, w: 22 },
   rocket:  { name: 'Rocket Launcher', slot: 'power',   damage: 260, rate: 1.20, auto: false, pellets: 1, range: 60, stab: 80, bloom: 0.0,   w: 9, maxAmmo: 6 },
   launcher:{ name: 'Grenade Launcher', slot: 'power', damage: 190, rate: 1.0, auto: false, pellets: 1, range: 45, stab: 70, bloom: 0.0, w: 7, maxAmmo: 8 },
   mg:      { name: 'Machine Gun',     slot: 'power',   damage: 17,  rate: 0.07, auto: true,  pellets: 1, range: 30, stab: 35, bloom: 0.009, w: 9, maxAmmo: 120 }
 };
 const LEG_NAMES = {
   pistol: ['Midnight Oath', 'Ember Sting'], rifle: ['Ironbark Burst', 'Stormline'],
-  shotgun: ['Hollow Verdict', 'Brass Eulogy'], plasma: ['Starfall Pulse', 'Pale Ignition'],
-  rocket: ['Thunder Choir', 'Last Orbit'], launcher: ['Gravebloom', 'Ashen Lob'], mg: ['Ridgeback', 'Cinder Chorus']
+  shotgun: ['Hollow Verdict', 'Copper Requiem'], plasma: ['Comet Pulse', 'Pale Ignition'],
+  rocket: ['Thunder Choir', 'Last Orbit'], launcher: ['Rotbloom', 'Ashen Lob'], mg: ['Ridgeback', 'Cinder Chorus']
 };
 // ---- EXOTICS. Every exotic is identified by a STABLE STRING ID (its perk key, e.g. 'thunder'); saves store that string, never an index.
 // Never rename or reuse an id. To add one: append an entry below (and bump nothing - unknown ids in old saves are kept, see SAVE-FORMAT.md).
-const INTRINSIC_EXOTIC = { key: 'cull', name: 'Cull the Weak', desc: '+40% damage against minor (red-bar) enemies.', intrinsic: true };
+const INTRINSIC_EXOTIC = { key: 'cull', name: 'Thin the Herd', desc: '+40% damage against minor (red-bar) enemies.', intrinsic: true };
 const EXOTIC_PERKS = {
   // ---- weapons
-  memento:   { name: "Dead Man's Tally", desc: 'Precision kills grant +50% damage for 6s.', flavor: '"Count them. Then count again."' },
-  thunder:   { name: 'Chain Lightning',  desc: 'Every 4th hit arcs lightning through up to 3 nearby enemies.', flavor: 'The sky owes you a favor.' },
-  bank:      { name: 'Ricochet Rounds',  desc: 'Shots that strike a wall bounce to the nearest enemy for 75% damage.', flavor: 'Never take the direct line.' },
-  seeker:    { name: 'Seeker Rounds',    desc: 'Bullets curve toward enemies near your reticle.', flavor: 'It sees what you meant to hit.' },
-  pierce:    { name: 'Piercing Rounds',  desc: 'Bullets punch through up to 4 enemies in a line.', flavor: 'One shot. A whole row.' },
-  sunshot:   { name: 'Sunburn',          desc: 'Hits ignite enemies. Kills detonate in a Solar explosion.', flavor: 'Hold it up to the light.' },
-  felwinter: { name: 'Cold Snap',        desc: 'Hits chill enemies (-40% speed). +20% damage. Kills restore 35 shield.', flavor: 'A lie so cold it tells the truth.' },
-  prism:     { name: 'Prismatic Fragments', desc: 'Precision hits split into 3 shards that strike other enemies for 45% damage.', flavor: 'Break the light, keep the edges.' },
-  plague:    { name: 'Plague Spread',    desc: 'Hits poison. Kills spread a lethal toxin to every enemy within 9m.', flavor: 'Share the sickness.' },
-  blade:     { name: 'Returning Blade',  desc: 'Throws a spinning blade that cuts through enemies, then returns and cuts again.', flavor: 'It always finds its way home.' },
-  lantern:   { name: 'Lantern of Light', desc: 'Hits charge your Super. Kills cut 2.5s off your grenade cooldown.', flavor: 'Light begets light.' },
-  wolfpack:  { name: 'Wolfpack Rounds',  desc: 'The rocket splits into 3 homing missiles mid-flight.', flavor: 'The pack hunts together.' },
-  swarm:     { name: 'Swarm Payload',    desc: 'The grenade bursts into 5 cluster bomblets on impact.', flavor: 'Too many to count.' },
-  hammer:    { name: 'Eternal Feed',     desc: 'Kills refill 20 heavy rounds. Every 3rd kill restores 10 health.', flavor: 'It is never empty. Neither are you.' },
-  storm:     { name: 'Storm Capacitor',  desc: 'Hits build charge. At 30 charges, unleash an Arc nova.', flavor: 'Every shot is a thunderhead.' },
-  rush:      { name: 'Bloodrush',        desc: 'Kills stack +20% damage and fire rate (x5) for 6s.', flavor: 'Keep killing. Keep climbing.' },
+  memento:   { name: 'Ledger of the Dead', desc: 'Precision kills grant +50% damage for 6s.', flavor: '"Count them. Then count again."' },
+  thunder:   { name: 'Forked Bolt',  desc: 'Every 4th hit arcs lightning through up to 3 nearby enemies.', flavor: 'The sky owes you a favor.' },
+  bank:      { name: 'Rebound Rounds',  desc: 'Shots that strike a wall bounce to the nearest enemy for 75% damage.', flavor: 'Never take the direct line.' },
+  seeker:    { name: 'Hunting Rounds',    desc: 'Bullets curve toward enemies near your reticle.', flavor: 'It sees what you meant to hit.' },
+  pierce:    { name: 'Throughshot',  desc: 'Bullets punch through up to 4 enemies in a line.', flavor: 'One shot. A whole row.' },
+  sunshot:   { name: 'Smolder',          desc: 'Hits ignite enemies. Kills detonate in a ' + ELEMENTS.solar.name + ' explosion.', flavor: 'Hold it up to the light.' },
+  felwinter: { name: 'Flashfreeze',        desc: 'Hits chill enemies (-40% speed). +20% damage. Kills restore 35 shield.', flavor: 'A lie so cold it tells the truth.' },
+  prism:     { name: 'Splintered Hues', desc: 'Precision hits split into 3 shards that strike other enemies for 45% damage.', flavor: 'Break the light, keep the edges.' },
+  plague:    { name: 'Creeping Rot',    desc: 'Hits poison. Kills spread a lethal toxin to every enemy within 9m.', flavor: 'Share the sickness.' },
+  blade:     { name: 'Recalling Disc',  desc: 'Throws a spinning blade that cuts through enemies, then returns and cuts again.', flavor: 'It always finds its way home.' },
+  lantern:   { name: 'Hearthflame', desc: 'Hits charge your Super. Kills cut 2.5s off your grenade cooldown.', flavor: 'Spark begets spark.' },
+  wolfpack:  { name: 'Hound Salvo',  desc: 'The rocket splits into 3 homing missiles mid-flight.', flavor: 'The pack hunts together.' },
+  swarm:     { name: 'Cluster Burst',    desc: 'The grenade bursts into 5 cluster bomblets on impact.', flavor: 'Too many to count.' },
+  hammer:    { name: 'Bottomless Belt',     desc: 'Kills refill 20 heavy rounds. Every 3rd kill restores 10 health.', flavor: 'It is never empty. Neither are you.' },
+  storm:     { name: 'Capacitor Coil',  desc: 'Hits build charge. At 30 charges, unleash a ' + ELEMENTS.arc.name + ' nova.', flavor: 'Every shot is a thunderhead.' },
+  rush:      { name: 'Redwake Tempo',        desc: 'Kills stack +20% damage and fire rate (x5) for 6s.', flavor: 'Keep killing. Keep climbing.' },
   // ---- armor
-  astro:     { name: 'Astral Reserves',  desc: 'Grenade cooldown halved. Grenade kills instantly recharge it.', flavor: 'Starlight never runs out.' },
-  harmony:   { name: 'Battle Harmony',   desc: '+50% Super energy gain. Killing a major or boss grants +20% Super.', flavor: 'Every fight sings.' },
-  inmost:    { name: 'Inner Light',      desc: 'Kills restore 12 HP and 15 shield. Breaking your shield releases a Radiant nova (8s cooldown).', flavor: 'It burns brightest when you break.' },
-  dune:      { name: 'Dune Stride',      desc: '+15% sprint speed. Your double jump unleashes an Arc shockwave.', flavor: 'Run the sand. Shake the ground.' },
-  stoic:     { name: 'Phoenix Resolve',  desc: 'Take 12% less damage. Once per 45s a fatal hit is survived: restore 50% health, 2s invulnerable.', flavor: 'Ash is just a pause.' }
+  astro:     { name: 'Quickfuse Reserves',  desc: 'Grenade cooldown halved. Grenade kills instantly recharge it.', flavor: 'Starlight never runs out.' },
+  harmony:   { name: 'Drumbeat Charge',   desc: '+50% Super energy gain. Killing a major or boss grants +20% Super.', flavor: 'Every fight sings.' },
+  inmost:    { name: NAMES.heartfire,      desc: 'Kills restore 12 HP and 15 shield. Breaking your shield releases a ' + NAMES.heartfire + ' nova (8s cooldown).', flavor: 'It burns brightest when you break.' },
+  dune:      { name: 'Salt Stride',      desc: '+15% sprint speed. Your double jump unleashes a ' + ELEMENTS.arc.name + ' shockwave.', flavor: 'Run the sand. Shake the ground.' },
+  stoic:     { name: 'Kestrelwing Resolve',  desc: 'Take 12% less damage. Once per 45s a fatal hit is survived: restore 50% health, 2s invulnerable.', flavor: 'Ash is just a pause.' }
 };
 // color = tracer/projectile/muzzle color, tint = viewmodel body color; mod = stat tweaks applied when the weapon is created
 const EXOTIC_WEAPONS = {
-  memento:   { name: 'Dead Ace',        base: 'pistol',   color: 0xff3344, tint: 0x4a1018, mod: {} },
-  thunder:   { name: 'Stormcaller',     base: 'rifle',    color: 0x66ddff, tint: 0x14405a, mod: {}, element: 'arc' },
-  bank:      { name: 'Bankshot',        base: 'rifle',    color: 0xd8ff3a, tint: 0x3d4a10, mod: { rateMul: 1.1 } },
-  seeker:    { name: "Shepherd's Eye",  base: 'pistol',   color: 0x9ff5ff, tint: 0x2a5560, mod: { dmgMul: 0.95 } },
-  pierce:    { name: 'Skewer',          base: 'pistol',   color: 0x25ffc0, tint: 0x0e4a3a, mod: { dmgMul: 1.4, rateMul: 1.3 } },
-  sunshot:   { name: 'Sunbreaker',      base: 'plasma',   color: 0xff9933, tint: 0x5a2c08, mod: {}, element: 'solar' },
-  felwinter: { name: 'Winter Lie',      base: 'shotgun',  color: 0xaaddff, tint: 0x30445e, mod: {}, element: 'arc' },
-  prism:     { name: 'Kaleidoscope',    base: 'plasma',   color: 0xff66e0, tint: 0x4a1a44, mod: {} },
-  plague:    { name: 'Plague Bearer',   base: 'shotgun',  color: 0x8dff3a, tint: 0x24401a, mod: {}, element: 'void' },
-  blade:     { name: "Reaver's Return", base: 'plasma',   color: 0xb066ff, tint: 0x30185a, mod: { dmgMul: 3.4, rateMul: 5 }, element: 'void' },
-  lantern:   { name: 'Lightbearer',     base: 'plasma',   color: 0xffee88, tint: 0x4a4418, mod: {}, element: 'solar' },
-  wolfpack:  { name: 'Wolfhorn',        base: 'rocket',   color: 0xff5522, tint: 0x4a2010, mod: {} },
-  swarm:     { name: 'Colony',          base: 'launcher', color: 0xc6ff66, tint: 0x344418, mod: { dmgMul: 0.8 } },
-  hammer:    { name: 'Hammerfall',      base: 'mg',       color: 0xffaa22, tint: 0x45310e, mod: {} },
-  storm:     { name: 'Thundergun',      base: 'mg',       color: 0x55aaff, tint: 0x12305a, mod: {}, element: 'arc' },
-  rush:      { name: 'Bloodrush',       base: 'mg',       color: 0xff2255, tint: 0x4a0c20, mod: { dmgMul: 1.1 } }
+  memento:   { name: 'Graveclerk',        base: 'pistol',   color: 0xff3344, tint: 0x4a1018, mod: {} },
+  thunder:   { name: 'Thunderwright',     base: 'rifle',    color: 0x66ddff, tint: 0x14405a, mod: {}, element: 'arc' },
+  bank:      { name: 'Caromer',        base: 'rifle',    color: 0xd8ff3a, tint: 0x3d4a10, mod: { rateMul: 1.1 } },
+  seeker:    { name: 'Hawkwatch',  base: 'pistol',   color: 0x9ff5ff, tint: 0x2a5560, mod: { dmgMul: 0.95 } },
+  pierce:    { name: 'Spitjack',          base: 'pistol',   color: 0x25ffc0, tint: 0x0e4a3a, mod: { dmgMul: 1.4, rateMul: 1.3 } },
+  sunshot:   { name: 'Sunforge',      base: 'plasma',   color: 0xff9933, tint: 0x5a2c08, mod: {}, element: 'solar' },
+  felwinter: { name: 'Hoarcrack',      base: 'shotgun',  color: 0xaaddff, tint: 0x30445e, mod: {}, element: 'arc' },
+  prism:     { name: 'Glasswright',    base: 'plasma',   color: 0xff66e0, tint: 0x4a1a44, mod: {} },
+  plague:    { name: 'Mireblight',   base: 'shotgun',  color: 0x8dff3a, tint: 0x24401a, mod: {}, element: 'void' },
+  blade:     { name: 'Wraithwheel', base: 'plasma',   color: 0xb066ff, tint: 0x30185a, mod: { dmgMul: 3.4, rateMul: 5 }, element: 'void' },
+  lantern:   { name: 'Embertender',     base: 'plasma',   color: 0xffee88, tint: 0x4a4418, mod: {}, element: 'solar' },
+  wolfpack:  { name: 'Houndcaller',        base: 'rocket',   color: 0xff5522, tint: 0x4a2010, mod: {} },
+  swarm:     { name: 'Swarmcaster',          base: 'launcher', color: 0xc6ff66, tint: 0x344418, mod: { dmgMul: 0.8 } },
+  hammer:    { name: 'Thrumgun',      base: 'mg',       color: 0xffaa22, tint: 0x45310e, mod: {} },
+  storm:     { name: 'Stormstitch',      base: 'mg',       color: 0x55aaff, tint: 0x12305a, mod: {}, element: 'arc' },
+  rush:      { name: 'Redwake',       base: 'mg',       color: 0xff2255, tint: 0x4a0c20, mod: { dmgMul: 1.1 } }
 };
 const EXOTIC_ARMOR = {
-  helmet: { name: 'Astral Verse', perk: 'astro', color: 0x66ccff }, arms: { name: 'Mantle of Harmony', perk: 'harmony', color: 0xffcc44 },
-  chest: { name: 'Inner Light Core', perk: 'inmost', color: 0xfff0a0 }, legs: { name: 'Dune Striders', perk: 'dune', color: 0xe0b060 },
-  classitem: { name: 'Phoenix Cloak', perk: 'stoic', color: 0xff7733 }
+  helmet: { name: 'Orrery Hood', perk: 'astro', color: 0x66ccff }, arms: { name: 'Drumbeat Mantle', perk: 'harmony', color: 0xffcc44 },
+  chest: { name: 'Heartfire Core', perk: 'inmost', color: 0xfff0a0 }, legs: { name: 'Brinestriders', perk: 'dune', color: 0xe0b060 },
+  classitem: { name: 'Kestrelwing Sash', perk: 'stoic', color: 0xff7733 }
 };
 const EXO_BY_BASE = {};
 for (const k of Object.keys(EXOTIC_WEAPONS)) (EXO_BY_BASE[EXOTIC_WEAPONS[k].base] = EXO_BY_BASE[EXOTIC_WEAPONS[k].base] || []).push(k);
@@ -585,6 +602,30 @@ const EXO_NAME_TO_ID = {};
 for (const k of Object.keys(EXOTIC_WEAPONS)) EXO_NAME_TO_ID[EXOTIC_WEAPONS[k].name] = k;
 for (const sl of Object.keys(EXOTIC_ARMOR)) { EXO_NAME_TO_ID[EXOTIC_ARMOR[sl].name] = EXOTIC_ARMOR[sl].perk; }
 EXO_NAME_TO_ID['Stoic Cloak'] = 'stoic';
+const LEGACY_EXOTIC_NAMES = {
+ 'Dead Ace': 'memento',
+ 'Stormcaller': 'thunder',
+ 'Bankshot': 'bank',
+ "Shepherd's Eye": 'seeker',
+ 'Skewer': 'pierce',
+ 'Sunbreaker': 'sunshot',
+ 'Winter Lie': 'felwinter',
+ 'Kaleidoscope': 'prism',
+ 'Plague Bearer': 'plague',
+ "Reaver's Return": 'blade',
+ 'Lightbearer': 'lantern',
+ 'Wolfhorn': 'wolfpack',
+ 'Colony': 'swarm',
+ 'Hammerfall': 'hammer',
+ 'Thundergun': 'storm',
+ 'Bloodrush': 'rush',
+ 'Astral Verse': 'astro',
+ 'Mantle of Harmony': 'harmony',
+ 'Inner Light Core': 'inmost',
+ 'Dune Striders': 'dune',
+ 'Phoenix Cloak': 'stoic'
+};   // old display names -> stable exotic id (pre-v9 saves stored the name)
+for (const n of Object.keys(LEGACY_EXOTIC_NAMES)) EXO_NAME_TO_ID[n] = LEGACY_EXOTIC_NAMES[n];
 // Exotic collection: which exotic ids the player has found (persisted)
 let collection = {};
 const exoDef = it => (it && it.kind === 'weapon' && it.rarity === 3 && EXOTIC_WEAPONS[it.exoticPerk]) || null;
@@ -603,9 +644,20 @@ function pickExoticArmorSlot() {
   const bag = []; for (const sl of ARMOR_SLOTS) { const n = collection[EXOTIC_ARMOR[sl].perk] ? 1 : 3; for (let i = 0; i < n; i++) bag.push(sl); }
   return pick(bag);
 }
-const ARMOR_ADJ = ['Vanguard', 'Nightfall', 'Aegis', 'Wraith', 'Ironclad', 'Sunsinger', 'Warden', 'Gloam'];
-const ARMOR_LABEL = { helmet: 'Helm', arms: 'Gauntlets', chest: 'Plate', legs: 'Greaves', classitem: 'Mark' };
-const STAT_NAMES = { res: 'Resilience', rec: 'Recovery', mob: 'Mobility' };
+const ARMOR_ADJ = ['Frontline', 'Duskward', 'Ward', 'Wraith', 'Ironclad', 'Cindersong', 'Warden', 'Gloam'];
+const ARMOR_LABEL = { helmet: 'Helm', arms: 'Gauntlets', chest: 'Plate', legs: 'Greaves', classitem: 'Sash' };
+// Old display name -> current display name for NON-exotic items (used once by MIGRATIONS[5]; exotics are re-derived from their stable id instead).
+const LEGACY_NAME_MAP = (() => {
+  const m = { 'Brass Eulogy': 'Copper Requiem', 'Starfall Pulse': 'Comet Pulse', 'Gravebloom': 'Rotbloom', 'Hand Cannon': 'Heavy Pistol', 'Plasma Rifle': 'Ion Carbine' };
+  for (const pre of ['Tuned', 'Veteran', 'Reliable', 'Standard', 'Worn', 'Rusty']) { m[pre + ' Hand Cannon'] = pre + ' Heavy Pistol'; m[pre + ' Plasma Rifle'] = pre + ' Ion Carbine'; }
+  const oldAdj = ['Vanguard', 'Nightfall', 'Aegis', 'Wraith', 'Ironclad', 'Sunsinger', 'Warden', 'Gloam'], newAdj = ['Frontline', 'Duskward', 'Ward', 'Wraith', 'Ironclad', 'Cindersong', 'Warden', 'Gloam'];
+  const oldLab = ['Helm', 'Gauntlets', 'Plate', 'Greaves', 'Mark'], newLab = ['Helm', 'Gauntlets', 'Plate', 'Greaves', 'Sash'];
+  for (let a = 0; a < oldAdj.length; a++) for (let l = 0; l < oldLab.length; l++) m[oldAdj[a] + ' ' + oldLab[l]] = newAdj[a] + ' ' + newLab[l];
+  for (let l = 0; l < oldLab.length; l++) m['Worn ' + oldLab[l]] = 'Worn ' + newLab[l];
+  for (const k of Object.keys(m)) if (m[k] === k) delete m[k];
+  return m;
+})();
+const STAT_NAMES = { res: 'Fortitude', rec: 'Mending', mob: 'Agility' };
 const MAX_INV = 60;
 
 function weaponName(base, rarity) {
@@ -733,8 +785,8 @@ function equipItem(it) {
   saveSoon();
   return true;
 }
-// ---- materials: Glimmer (common currency) + Legendary Shards (rare). Dismantling gear returns both.
-const mats = { glimmer: 0, shards: 0, ciphers: 0 };   // ciphers = Exotic Ciphers (boss drops / exotic dismantles): needed for the final exotic level
+// ---- materials: Brass (common currency) + Kiln Cores (rare). Dismantling gear returns both.
+const mats = { glimmer: 0, shards: 0, ciphers: 0 };   // ciphers = Relic Seals (boss drops / exotic dismantles): needed for the final exotic level
 const DISMANTLE_G = [10, 30, 90, 250], DISMANTLE_S = [0, 0, 1, 3], DISMANTLE_C = [0, 0, 0, 1];
 function dismantleValue(it) {
   const k = Math.max(0.6, 1 + (it.power - 100) * 0.004);
@@ -768,7 +820,7 @@ function addItem(it) {
       if (!worst || i.rarity < worst.rarity || (i.rarity === worst.rarity && i.power < worst.power)) worst = i;
     }
     const ok = worst && (worst.rarity < it.rarity || (worst.rarity === it.rarity && worst.power < it.power) || it.rarity >= 3);
-    if (ok) { const v = dismantleValue(worst); inventory.splice(inventory.indexOf(worst), 1); addMats(v.g, v.s, v.c); toast('Inventory full: dismantled ' + worst.name + ' (+' + v.g + ' Glimmer)', '#aaa'); }
+    if (ok) { const v = dismantleValue(worst); inventory.splice(inventory.indexOf(worst), 1); addMats(v.g, v.s, v.c); toast('Inventory full: dismantled ' + worst.name + ' (+' + v.g + ' ' + NAMES.brass + ')', '#aaa'); }
     else {
       const now = performance.now();
       if (now - invWarnAt > 2500) { invWarnAt = now; toast('Inventory full (' + MAX_INV + '): dismantle something to pick this up', '#ff9a4a'); }
@@ -796,7 +848,7 @@ function starterGear() {
 //  SAVE_VERSION and add a MIGRATIONS[oldVersion] step. Loading never throws and never wipes a save.
 // =====================================================================
 const SAVE_KEY = 'dfps_save';
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;
 const GAME_BUILD = 'v8-strikes';
 const LEGACY_SAVE_KEY = 'dungeonfps.save.v2';        // v2-destiny .. v5-nostick wrote {v:2,...} here
 const LEGACY_SETTINGS_KEY = 'dungeonfps.settings.v1'; // v3-controls .. v5-nostick wrote settings here
@@ -836,6 +888,23 @@ function cleanSettings(raw) {
   return s;
 }
 
+// ---- v9 rename pass: saved items store their DISPLAY name, so MIGRATIONS[5] rewrites old names to the current ones.
+// Exotics are re-derived from their stable id (exoticPerk, or the OLD name via EXO_NAME_TO_ID / LEGACY_EXOTIC_NAMES when a very old item has no exoticPerk), never from the new name.
+function renameLegacyItem(i) {
+  if (!isObj(i) || (i.kind !== 'weapon' && i.kind !== 'armor')) return i;
+  const o = Object.assign({}, i), nm = typeof o.name === 'string' ? o.name : '';
+  if (o.rarity === 3) {
+    if (o.kind === 'weapon') {
+      let id = (typeof o.exoticPerk === 'string' && EXOTIC_WEAPONS[o.exoticPerk]) ? o.exoticPerk : (EXOTIC_WEAPONS[EXO_NAME_TO_ID[nm]] ? EXO_NAME_TO_ID[nm] : null);
+      if (id) { if (!o.exoticPerk) o.exoticPerk = id; o.name = EXOTIC_WEAPONS[id].name; return o; }
+    } else if (EXOTIC_ARMOR[o.slot]) {
+      const def = EXOTIC_ARMOR[o.slot];
+      if (!o.exoticPerk || o.exoticPerk === def.perk) { o.exoticPerk = def.perk; o.name = def.name; return o; }
+    }
+  }
+  if (LEGACY_NAME_MAP[nm]) o.name = LEGACY_NAME_MAP[nm];
+  return o;
+}
 // ---- MIGRATIONS: MIGRATIONS[n] upgrades a version-n save object to version n+1 (must set saveVersion = n+1).
 const MIGRATIONS = {
   // 2 -> 3: legacy {v:2, inventory, equip, level, xp, xpToNext, wave, bestWave, activeSlot[, mats, inter]} -> grouped, versioned schema
@@ -869,7 +938,14 @@ const MIGRATIONS = {
     return out;
   },
   // 4 -> 5 (v8): objectives. progress gains the strike block (default values); every inventory item gets locked:false (gear locking).
-  4: o => Object.assign({}, o, { saveVersion: 5, inventory: Array.isArray(o.inventory) ? o.inventory.map(i => (isObj(i) && typeof i.locked !== 'boolean') ? Object.assign({}, i, { locked: false }) : i) : o.inventory, progress: Object.assign({}, isObj(o.progress) ? o.progress : {}, defaultProgressExtra()) })
+  4: o => Object.assign({}, o, { saveVersion: 5, inventory: Array.isArray(o.inventory) ? o.inventory.map(i => (isObj(i) && typeof i.locked !== 'boolean') ? Object.assign({}, i, { locked: false }) : i) : o.inventory, progress: Object.assign({}, isObj(o.progress) ? o.progress : {}, defaultProgressExtra()) }),
+  // 5 -> 6 (v9): rename pass. Display names stored on items (inventory + shop stock) are rewritten old -> new (ids, perks, elements, mats keys are unchanged); exotics keep their identity via exoticPerk.
+  5: o => {
+    const out = Object.assign({}, o, { saveVersion: 6 });
+    if (Array.isArray(o.inventory)) out.inventory = o.inventory.map(renameLegacyItem);
+    if (isObj(o.inter) && Array.isArray(o.inter.stock)) out.inter = Object.assign({}, o.inter, { stock: o.inter.stock.map(renameLegacyItem) });
+    return out;
+  }
 };
 function defaultProgressExtra() { return { strikes: { fallen_outpost: { clears: 0, bestTimeSec: 0, bestTier: 0 } }, lastMode: 'patrol', lastDailyClear: -1, patrolToastShown: false, active: null }; }
 // sanitise the strike part of save.progress (unknown ids / out-of-range numbers are clamped or dropped; never throws, never wipes the rest of the save)
@@ -1133,7 +1209,7 @@ function makeExportCode() {
 }
 function describeSave(s) {
   const exo = Object.keys(s.collection).length;
-  return 'Level ' + s.player.level + ', wave ' + s.progress.wave + ' (best ' + s.progress.bestWave + '), ' + s.inventory.length + ' items, ' + exo + ' exotic' + (exo === 1 ? '' : 's') + ' found, ' + fmtN(s.mats.glimmer) + ' Glimmer / ' + fmtN(s.mats.shards) + ' Shards.';
+  return 'Level ' + s.player.level + ', wave ' + s.progress.wave + ' (best ' + s.progress.bestWave + '), ' + s.inventory.length + ' items, ' + exo + ' exotic' + (exo === 1 ? '' : 's') + ' found, ' + fmtN(s.mats.glimmer) + ' ' + NAMES.brass + ' / ' + fmtN(s.mats.shards) + ' ' + NAMES.cores + '.';
 }
 // Validate pasted text (export code, wrapped JSON, or a raw save JSON). Returns {ok, save, summary, warn} or {ok:false, error}.
 function parseImportText(text) {
@@ -1179,53 +1255,53 @@ const MAX_POWER = 99999999;
 const PERK_COL_LABEL = { weapon: { A: 'BARREL / MAG', B: 'TRAIT', C: 'ORIGIN' }, armor: { A: 'MOD', B: 'TRAIT', C: 'ORIGIN' } };
 const PERKS = {
   // ---- column A: barrel / magazine
-  smoothbore:  { col: 'A', name: 'Smoothbore',           desc: '-30% bullet spread.', not: ['rocket', 'launcher'] },
-  arrowhead:   { col: 'A', name: 'Arrowhead Brake',      desc: '+20% effective range (slower damage falloff).', not: ['rocket', 'launcher'] },
+  smoothbore:  { col: 'A', name: 'Polished Bore',           desc: '-30% bullet spread.', not: ['rocket', 'launcher'] },
+  arrowhead:   { col: 'A', name: 'Spearpoint Brake',      desc: '+20% effective range (slower damage falloff).', not: ['rocket', 'launcher'] },
   fullchoke:   { col: 'A', name: 'Full Choke',           desc: '-35% pellet spread and +10% damage.', only: ['shotgun'] },
-  accurized:   { col: 'A', name: 'Accurized Rounds',     desc: '+20% precision (headshot) damage.', not: ['rocket', 'launcher'] },
-  lightmag:    { col: 'A', name: 'Lightweight Mag',      desc: '+10% fire rate.' },
-  tacmag:      { col: 'A', name: 'Tactical Mag',         desc: 'Recoil bloom builds 50% slower.', not: ['rocket', 'launcher'] },
+  accurized:   { col: 'A', name: 'Honed Rounds',     desc: '+20% precision (headshot) damage.', not: ['rocket', 'launcher'] },
+  lightmag:    { col: 'A', name: 'Slim Mag',      desc: '+10% fire rate.' },
+  tacmag:      { col: 'A', name: 'Steady Mag',         desc: 'Recoil bloom builds 50% slower.', not: ['rocket', 'launcher'] },
   extmag:      { col: 'A', name: 'Extended Mag',         desc: '+35% heavy ammo capacity.', only: ['power'] },
-  quickdraw:   { col: 'A', name: 'Quickdraw Holster',    desc: 'Swapping to this weapon is 60% faster.' },
+  quickdraw:   { col: 'A', name: 'Fast Holster',    desc: 'Swapping to this weapon is 60% faster.' },
   // ---- column B: traits
-  rampage:     { col: 'B', name: 'Rampage',              desc: 'Kills stack +15% damage (up to x3) for 4s.' },
-  outlaw:      { col: 'B', name: 'Outlaw',               desc: 'Precision kills raise fire rate 40% for 5s.' },
-  killclip:    { col: 'B', name: 'Kill Clip',            desc: 'Kills grant +35% damage for 3s.' },
-  explosive:   { col: 'B', name: 'Explosive Payload',    desc: 'Hits deal 25% splash damage nearby.', not: ['rocket', 'launcher'] },
-  rapidhit:    { col: 'B', name: 'Rapid Hit',            desc: 'Hits stack fire rate +7% (up to x4).', not: ['rocket', 'launcher'] },
-  firefly:     { col: 'B', name: 'Firefly',              desc: 'Precision kills explode.' },
-  dragonfly:   { col: 'B', name: 'Dragonfly',            desc: 'Precision kills detonate in a 5m elemental blast that scorches survivors.' },
-  feedingfrenzy: { col: 'B', name: 'Feeding Frenzy',     desc: 'Kills stack +8% fire rate (up to x3) for 5s.' },
-  incandescent: { col: 'B', name: 'Incandescent',        desc: 'Kills scorch enemies within 6m, burning them for 3s.' },
-  voltshot:    { col: 'B', name: 'Voltshot',             desc: 'Kills charge your shots for 5s: hits arc lightning to a nearby enemy.', not: ['rocket', 'launcher'] },
-  headseeker:  { col: 'B', name: 'Headseeker',           desc: 'Precision hits grant +25% precision damage for 3s.', not: ['rocket', 'launcher'] },
-  frenzy:      { col: 'B', name: 'Frenzy',               desc: 'After 5s of sustained combat: +18% damage and +12% fire rate.' },
-  demolitionist: { col: 'B', name: 'Demolitionist',      desc: 'Kills cut your grenade cooldown (1.2s minor, 3s major/boss).' },
-  subsistence: { col: 'B', name: 'Subsistence',          desc: 'Kills refund heavy ammo (power weapons), or can drop a heavy ammo brick.' },
-  zenmoment:   { col: 'B', name: 'Zen Moment',           desc: 'Taking damage tightens your aim (-50% spread) and grants +8% damage for 4s.' },
-  movingtarget: { col: 'B', name: 'Moving Target',       desc: 'While moving: -40% spread and +10% damage.' },
-  openingshot: { col: 'B', name: 'Opening Shot',         desc: 'First shot after 1.5s idle: +45% damage and perfect accuracy.' },
-  oneforall:   { col: 'B', name: 'One for All',          desc: 'Hit 3 different enemies within 4s: +25% damage for 6s.' },
-  swashbuckler: { col: 'B', name: 'Swashbuckler',        desc: 'Kills within 8m stack +10% damage (up to x5) for 6s.' },
+  rampage:     { col: 'B', name: 'Run Amok',              desc: 'Kills stack +15% damage (up to x3) for 4s.' },
+  outlaw:      { col: 'B', name: 'Hot Streak',               desc: 'Precision kills raise fire rate 40% for 5s.' },
+  killclip:    { col: 'B', name: 'Killing Tempo',            desc: 'Kills grant +35% damage for 3s.' },
+  explosive:   { col: 'B', name: 'Blast Rounds',    desc: 'Hits deal 25% splash damage nearby.', not: ['rocket', 'launcher'] },
+  rapidhit:    { col: 'B', name: 'Chain Tap',            desc: 'Hits stack fire rate +7% (up to x4).', not: ['rocket', 'launcher'] },
+  firefly:     { col: 'B', name: 'Skullburst',              desc: 'Precision kills explode.' },
+  dragonfly:   { col: 'B', name: 'Scorch Bloom',            desc: 'Precision kills detonate in a 5m elemental blast that scorches survivors.' },
+  feedingfrenzy: { col: 'B', name: 'Hungry Barrel',     desc: 'Kills stack +8% fire rate (up to x3) for 5s.' },
+  incandescent: { col: 'B', name: 'Kindling',        desc: 'Kills scorch enemies within 6m, burning them for 3s.' },
+  voltshot:    { col: 'B', name: 'Live Wire',             desc: 'Kills charge your shots for 5s: hits arc lightning to a nearby enemy.', not: ['rocket', 'launcher'] },
+  headseeker:  { col: 'B', name: 'Skull Tracker',           desc: 'Precision hits grant +25% precision damage for 3s.', not: ['rocket', 'launcher'] },
+  frenzy:      { col: 'B', name: 'Fever Pitch',               desc: 'After 5s of sustained combat: +18% damage and +12% fire rate.' },
+  demolitionist: { col: 'B', name: 'Fuse Tuner',      desc: 'Kills cut your grenade cooldown (1.2s minor, 3s major/boss).' },
+  subsistence: { col: 'B', name: 'Salvage Rounds',          desc: 'Kills refund heavy ammo (power weapons), or can drop a heavy ammo brick.' },
+  zenmoment:   { col: 'B', name: 'Cool Head',           desc: 'Taking damage tightens your aim (-50% spread) and grants +8% damage for 4s.' },
+  movingtarget: { col: 'B', name: 'Run and Gun',       desc: 'While moving: -40% spread and +10% damage.' },
+  openingshot: { col: 'B', name: 'Cold Open',         desc: 'First shot after 1.5s idle: +45% damage and perfect accuracy.' },
+  oneforall:   { col: 'B', name: 'Three Marks',          desc: 'Hit 3 different enemies within 4s: +25% damage for 6s.' },
+  swashbuckler: { col: 'B', name: 'Close Combo',        desc: 'Kills within 8m stack +10% damage (up to x5) for 6s.' },
   // ---- column C: origin
-  vorpal:      { col: 'C', name: 'Vorpal Weapon',        desc: '+18% damage vs majors and bosses.' },
-  omolon:      { col: 'C', name: 'Omolon Fluid Dynamics', desc: '+25% damage to enemy shields.' },
-  veist:       { col: 'C', name: 'Veist Stinger',        desc: 'Kills restore 5% max health (12% on majors).' },
-  suros:       { col: 'C', name: 'Suros Regime',         desc: 'Kills restore 8% max shield (18% on majors).' },
-  cassoid:     { col: 'C', name: 'Cassoid Lecture',      desc: 'Hits chill enemies, slowing them for 1.5s.', not: ['rocket', 'launcher'] },
-  bray:        { col: 'C', name: 'Bray Inheritance',     desc: '+12% damage while your shield is full.' }
+  vorpal:      { col: 'C', name: 'Giantbane',        desc: '+18% damage vs majors and bosses.' },
+  omolon:      { col: 'C', name: 'Solvent Coating', desc: '+25% damage to enemy shields.' },
+  veist:       { col: 'C', name: 'Leech Stinger',        desc: 'Kills restore 5% max health (12% on majors).' },
+  suros:       { col: 'C', name: 'Iron Regimen',         desc: 'Kills restore 8% max shield (18% on majors).' },
+  cassoid:     { col: 'C', name: 'Frostbite Lecture',      desc: 'Hits chill enemies, slowing them for 1.5s.', not: ['rocket', 'launcher'] },
+  bray:        { col: 'C', name: 'Heirloom Ward',     desc: '+12% damage while your shield is full.' }
 };
 const APERKS = {
   // ---- column A: mods
-  majorplate:  { col: 'A', name: 'Major Plating',   desc: '-8% damage from major and boss enemies.' },
-  swarmplate:  { col: 'A', name: 'Swarm Plating',   desc: '-8% damage from minor enemies.' },
-  loader:      { col: 'A', name: 'Loader Rig',      desc: 'Weapon swaps are 30% faster; your heavy weapon regains 1 round every 15s.' },
-  ammofinder:  { col: 'A', name: 'Ammo Finder',     desc: 'Heavy ammo drops 2x as often and bricks give +40% ammo. Stacks across armor pieces: drops up to 3x, bricks up to +120%.' },
-  orbs:        { col: 'A', name: 'Orb Collector',   desc: 'Glimmer/Shard orbs are drawn from 3x farther, give +20% Glimmer, and grant 3 Super each.' },
-  fleet:       { col: 'A', name: 'Fleet Footed',    desc: '+6% movement speed.' },
+  majorplate:  { col: 'A', name: 'Brute Plating',   desc: '-8% damage from major and boss enemies.' },
+  swarmplate:  { col: 'A', name: 'Rabble Plating',   desc: '-8% damage from minor enemies.' },
+  loader:      { col: 'A', name: 'Swap Rig',      desc: 'Weapon swaps are 30% faster; your heavy weapon regains 1 round every 15s.' },
+  ammofinder:  { col: 'A', name: 'Salvage Nose',     desc: 'Heavy ammo drops 2x as often and bricks give +40% ammo. Stacks across armor pieces: drops up to 3x, bricks up to +120%.' },
+  orbs:        { col: 'A', name: 'Spark Magnet',   desc: NAMES.brass + '/' + NAMES.coreWord + ' orbs are drawn from 3x farther, give +20% ' + NAMES.brass + ', and grant 3 Super each.' },
+  fleet:       { col: 'A', name: 'Fleetfoot',    desc: '+6% movement speed.' },
   quickcharge: { col: 'A', name: 'Quick Charge',    desc: 'Shield recharge starts 20% sooner and is 10% faster.' },
   // ---- column B: kill traits
-  revitalize:  { col: 'B', name: 'Revitalize',      desc: 'Kills restore 4% max health (10% on majors).' },
+  revitalize:  { col: 'B', name: 'Bloodtap',      desc: 'Kills restore 4% max health (10% on majors).' },
   siphon:      { col: 'B', name: 'Shield Siphon',   desc: 'Kills restore 6% max shield (15% on majors).' },
   linkgren:    { col: 'B', name: 'Grenade Link',    desc: 'Kills cut 0.7s from your grenade cooldown (2s on majors).' },
   superlink:   { col: 'B', name: 'Super Link',      desc: 'Kills grant +2 Super (+6 on majors, +15 on bosses).' },
@@ -1233,10 +1309,10 @@ const APERKS = {
   // ---- column C: origin
   fortify:     { col: 'C', name: 'Fortify',         desc: '+10% max shield and max health.' },
   laststand:   { col: 'C', name: 'Last Stand',      desc: 'Below 35% health, take 18% less damage.' },
-  edge:        { col: 'C', name: 'Vanguard Edge',   desc: '+5% weapon damage.' },
+  edge:        { col: 'C', name: 'Frontline Edge',   desc: '+5% weapon damage.' },
   grenadier:   { col: 'C', name: 'Grenadier',       desc: '+20% grenade damage and +8% grenade radius.' },
-  overload:    { col: 'C', name: 'Overload',        desc: '+15% Super damage.' },
-  recuperation: { col: 'C', name: 'Recuperation',   desc: 'Health regenerates 60% faster.' }
+  overload:    { col: 'C', name: 'Overcharge',        desc: '+15% Super damage.' },
+  recuperation: { col: 'C', name: 'Second Wind',   desc: 'Health regenerates 60% faster.' }
 };
 const perkTable = it => (it && it.kind === 'armor') ? APERKS : PERKS;
 const ROLL_COLS = [['B'], ['A', 'B'], ['A', 'B', 'C'], ['A', 'B']];
@@ -1275,7 +1351,7 @@ function fillPerks(it) {
 // =====================================================================
 const EXO_MAXLV = 5;
 const EXO_XP_CUM = [0, 40, 140, 340, 690];            // cumulative kill-XP to be ready for level 1..5 (minor 1, major 4, boss 15)
-const EXO_COSTS = [null, null, { g: 250, s: 2 }, { g: 500, s: 4 }, { g: 900, s: 7 }, { g: 1500, s: 10, c: 1 }];   // cost to reach level 2..5 (index = target level; Glimmer scales with power)
+const EXO_COSTS = [null, null, { g: 250, s: 2 }, { g: 500, s: 4 }, { g: 900, s: 7 }, { g: 1500, s: 10, c: 1 }];   // cost to reach level 2..5 (index = target level; Brass scales with power)
 const EXO_SCALE = {};
 const pct = v => Math.round(v * 100);
 const nf1 = v => (Math.round(v * 10) / 10).toString();
@@ -1293,15 +1369,15 @@ defX('seeker', { cone: ['Seek cone', '\u00B0', 1, [18, 22, 26, 30, 34]], mul: ['
 defX('pierce', { n: ['Targets pierced', '', 1, [4, 4, 5, 5, 6]], fall: ['Falloff per target', '%', 100, [.15, .12, .10, .08, .06]] },
   p => 'Bullets punch through up to ' + p.n + ' enemies in a line (-' + pct(p.fall) + '% per target).', '+25% damage and no falloff through enemies.');
 defX('sunshot', { burn: ['Burn damage', 'x weapon/s', 1, [1.3, 1.5, 1.7, 1.9, 2.1]], rad: ['Blast radius', 'm', 1, [5, 5.5, 6, 6.5, 7]], boom: ['Blast damage', '', 1, [110, 125, 140, 155, 170]] },
-  p => 'Hits ignite enemies. Kills detonate in a ' + p.rad + 'm Solar explosion.', 'Solar explosions re-ignite every enemy they hit.');
+  p => 'Hits ignite enemies. Kills detonate in a ' + p.rad + 'm ' + ELEMENTS.solar.name + ' explosion.', ELEMENTS.solar.name + ' explosions re-ignite every enemy they hit.');
 defX('felwinter', { dmg: ['Damage bonus', '%', 100, [.2, .22, .24, .26, .3]], sh: ['Shield on kill', '% max', 100, [.25, .3, .35, .4, .45]], chill: ['Chill time', 's', 1, [3, 3.5, 4, 4.5, 5]], rad: ['Kill chill radius', 'm', 1, [4.5, 5, 5.5, 6, 6.5]] },
-  p => 'Hits chill enemies for ' + p.chill + 's. +' + pct(p.dmg) + '% damage. Kills restore ' + pct(p.sh) + '% shield and chill enemies within ' + p.rad + 'm.', 'Kills shatter in a 4m Arc burst.');
+  p => 'Hits chill enemies for ' + p.chill + 's. +' + pct(p.dmg) + '% damage. Kills restore ' + pct(p.sh) + '% shield and chill enemies within ' + p.rad + 'm.', 'Kills shatter in a 4m ' + ELEMENTS.arc.name + ' burst.');
 defX('prism', { n: ['Shards', '', 1, [3, 3, 4, 5, 6]], frac: ['Shard damage', '%', 100, [.45, .5, .55, .6, .65]] },
   p => 'Precision hits split into ' + p.n + ' shards that strike other enemies for ' + pct(p.frac) + '% damage.', 'Non-precision hits fire 2 shards as well.');
 defX('plague', { rad: ['Spread radius', 'm', 1, [9, 10, 11, 12, 13]], dps: ['Spread poison', 'x weapon/s', 1, [.7, .8, .9, 1, 1.1]] },
   p => 'Hits poison. Kills spread a lethal toxin to every enemy within ' + p.rad + 'm.', 'Hits also poison the 2 nearest enemies within 6m.');
 defX('blade', { reach: ['Throw distance', 'm', 1, [22, 25, 28, 31, 34]], ret: ['Return damage', '%', 100, [.8, .9, 1, 1.1, 1.2]] },
-  p => 'Throws a blade ' + p.reach + 'm that cuts through enemies, then returns for ' + pct(p.ret) + '% damage.', 'The blade detonates in a Void burst when you catch it.');
+  p => 'Throws a blade ' + p.reach + 'm that cuts through enemies, then returns for ' + pct(p.ret) + '% damage.', 'The blade detonates in a ' + ELEMENTS.void.name + ' burst when you catch it.');
 defX('lantern', { sup: ['Super per hit', '', 1, [.7, .9, 1.1, 1.3, 1.5]], cut: ['Grenade cut per kill', 's', 1, [2.5, 3, 3.5, 4, 4.5]] },
   p => 'Hits charge your Super (+' + p.sup + '). Kills cut ' + p.cut + 's off your grenade cooldown.', 'Kills grant +6 Super.');
 defX('wolfpack', { n: ['Missiles', '', 1, [3, 4, 4, 5, 6]], frac: ['Missile damage', '%', 100, [.6, .6, .65, .7, .75]] },
@@ -1311,7 +1387,7 @@ defX('swarm', { n: ['Bomblets', '', 1, [5, 6, 7, 8, 9]], frac: ['Bomblet damage'
 defX('hammer', { refill: ['Rounds per kill', '', 1, [20, 25, 30, 35, 40]], heal: ['Heal', '% max HP', 100, [.08, .10, .12, .14, .16]] },
   p => 'Kills refill ' + p.refill + ' heavy rounds. Every 3rd kill restores ' + pct(p.heal) + '% health.', 'Every 2nd kill heals instead of every 3rd.');
 defX('storm', { need: ['Hits to nova', '', 1, [30, 27, 24, 21, 18]], rad: ['Nova radius', 'm', 1, [7, 7.5, 8, 8.5, 9]] },
-  p => 'Hits build charge. At ' + p.need + ' charges, unleash a ' + p.rad + 'm Arc nova.', 'Nova deals +50% damage and leaves 10 charge behind.');
+  p => 'Hits build charge. At ' + p.need + ' charges, unleash a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' nova.', 'Nova deals +50% damage and leaves 10 charge behind.');
 defX('rush', { per: ['Per stack', '%', 100, [.2, .22, .24, .26, .28]], max: ['Max stacks', '', 1, [5, 5, 6, 6, 6]], dur: ['Duration', 's', 1, [6, 6.5, 7, 7.5, 8]] },
   p => 'Kills stack +' + pct(p.per) + '% damage and fire rate (x' + p.max + ') for ' + p.dur + 's.', '+2 maximum stacks.');
 // ---- armor
@@ -1320,9 +1396,9 @@ defX('astro', { cd: ['Grenade cooldown', '%', 100, [.5, .45, .4, .35, .3]] },
 defX('harmony', { gain: ['Super gain', '%', 100, [1.5, 1.6, 1.7, 1.8, 1.9]], bonus: ['Major/boss kill', '% Super', 1, [20, 22, 24, 26, 28]] },
   p => '+' + pct(p.gain - 1) + '% Super energy gain. Killing a major or boss grants +' + p.bonus + '% Super.', 'Super damage resistance lasts 0.8s longer.');
 defX('inmost', { heal: ['Heal per kill', '% max HP', 100, [.08, .10, .12, .14, .16]], sh: ['Shield per kill', '% max', 100, [.15, .18, .21, .24, .27]], rad: ['Nova radius', 'm', 1, [7, 7.5, 8, 8.5, 9]], cd: ['Nova cooldown', 's', 1, [8, 7.5, 7, 6.5, 6]] },
-  p => 'Kills restore ' + pct(p.heal) + '% health and ' + pct(p.sh) + '% shield. Breaking your shield releases a ' + p.rad + 'm Radiant nova (' + p.cd + 's cooldown).', 'The nova also restores 25% health.');
+  p => 'Kills restore ' + pct(p.heal) + '% health and ' + pct(p.sh) + '% shield. Breaking your shield releases a ' + p.rad + 'm ' + NAMES.heartfire + ' nova (' + p.cd + 's cooldown).', 'The nova also restores 25% health.');
 defX('dune', { spd: ['Sprint speed', '%', 100, [.15, .17, .19, .21, .23]], rad: ['Shockwave radius', 'm', 1, [5.5, 6, 6.5, 7, 7.5]], cd: ['Shockwave cooldown', 's', 1, [2.5, 2.3, 2.1, 1.9, 1.7]] },
-  p => '+' + pct(p.spd) + '% sprint speed. Your double jump unleashes a ' + p.rad + 'm Arc shockwave (' + p.cd + 's cooldown).', 'The shockwave chills enemies for 3s.');
+  p => '+' + pct(p.spd) + '% sprint speed. Your double jump unleashes a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' shockwave (' + p.cd + 's cooldown).', 'The shockwave chills enemies for 3s.');
 defX('stoic', { res: ['Damage resistance', '%', 100, [.12, .14, .16, .18, .20]], cd: ['Save cooldown', 's', 1, [45, 42, 39, 36, 33]], restore: ['Health restored', '%', 100, [.5, .5, .55, .6, .65]] },
   p => 'Take ' + pct(p.res) + '% less damage. Once per ' + p.cd + 's a fatal hit is survived: restore ' + pct(p.restore) + '% health, 2s invulnerable.', 'Invulnerable for 3.5s after being saved.');
 
@@ -1372,8 +1448,8 @@ function setItemPower(it, p) {
 }
 // highest power the player has: best item in the inventory, the current zone power, or the equipped average
 const highestPower = () => { let m = Math.max(player.power, zonePower()); for (const i of inventory) if (i.power > m) m = i.power; return m; };
-const infuseTarget = () => Math.min(POWER_CAP, player.power);   // v8: an exotic is Empowered to the player's CURRENT power (never past POWER_CAP), so it can't shortcut the climb
-// Cost grows gently with the GAP (not with absolute power): Glimmer 25 + 8*gap^0.75, Shards 1 + sqrt(gap)/10 (max 25).
+const infuseTarget = () => Math.min(POWER_CAP, player.power);   // v8: an exotic is Reburnished to the player's CURRENT power (never past POWER_CAP), so it can't shortcut the climb
+// Cost grows gently with the GAP (not with absolute power): Brass 25 + 8*gap^0.75, Kiln Cores 1 + sqrt(gap)/10 (max 25).
 function infuseCost(it) {
   const gap = Math.max(0, infuseTarget() - it.power);
   if (gap <= 0) return null;
@@ -1642,19 +1718,19 @@ function getSafeSpawn() {
 //  (arenaGroup / arenaGeos / arenaMats) and disposed on the next build; nav grids, safe spawns and the minimap are rebuilt.
 // =====================================================================
 const ARENA_THEMES = [
-  { id: 'cosmodrome', name: 'COSMODROME COURTYARD', sub: 'Cracked concrete and old Golden Age steel',
+  { id: 'cosmodrome', name: 'RELAY YARD', sub: 'Cracked concrete and pre-Dimming steel',
     bg: 0x5d6b7c, fog: [38, 100], amb: [0xaab4c0, 0.9], dir: [0xffffff, 0.7],
     floor: 0x5b6878, wall: 0x8493a3, pillar: 0x75869a, cover: 0x5f7185, crate: 0x8b7a58, crate2: 0x6f6a5c, barrel: 0x9a4a3a, pylon: 0x3f4b5a, dais: 0x4d5a6b, lane: 0x536073,
     gridCol: 0x4a5666, glowA: 0x66ddff, glowB: 0xffa040, mmBg: '#18202a', mmFg: '#7d8ea4' },
-  { id: 'crypt', name: 'HIVE CRYPT', sub: 'Green fire gutters in the dark',
+  { id: 'crypt', name: 'MOURNBOUND CRYPT', sub: 'Green fire gutters in the dark',
     bg: 0x0d1a12, fog: [14, 62], amb: [0x6a9a78, 0.75], dir: [0x8cff9c, 0.35],
     floor: 0x24302a, wall: 0x3a4a3c, pillar: 0x4b5a48, cover: 0x39463a, crate: 0x57604a, crate2: 0x434b3e, barrel: 0x4a3a30, pylon: 0x2c3a30, dais: 0x1c2a22, lane: 0x1f2c24,
     gridCol: 0x2f3f33, glowA: 0x6dff6a, glowB: 0xb6ff3a, mmBg: '#0b140e', mmFg: '#5a8a62' },
-  { id: 'vex', name: 'VEX GARDEN', sub: 'Gold and white, humming with unreal light',
+  { id: 'vex', name: 'LATTICE ATRIUM', sub: 'Gold and white, humming with cold light',
     bg: 0x8c8672, fog: [45, 120], amb: [0xfff0d0, 0.72], dir: [0xffffff, 0.6],
     floor: 0x666a6e, wall: 0xa8a392, pillar: 0xb39a4a, cover: 0xb8b29c, crate: 0xb08a38, crate2: 0x8f8b78, barrel: 0x8f6a1e, pylon: 0x9a741c, dais: 0x948c6c, lane: 0x787c80,
     gridCol: 0x5a5e62, glowA: 0xffd45a, glowB: 0xffffff, mmBg: '#2b2a22', mmFg: '#f0d98a' },
-  { id: 'cabal', name: 'CABAL FORTRESS', sub: 'Red iron bulkheads and floodlights',
+  { id: 'cabal', name: 'FURNACE BASTION', sub: 'Red iron bulkheads and floodlights',
     bg: 0x2a1410, fog: [26, 82], amb: [0xc08a74, 0.8], dir: [0xffb080, 0.65],
     floor: 0x4a3330, wall: 0x7a3a2c, pillar: 0x6d4a3e, cover: 0x5a3a32, crate: 0x7a5a3a, crate2: 0x5a4a44, barrel: 0xa63a24, pylon: 0x3a2622, dais: 0x3a2724, lane: 0x40302c,
     gridCol: 0x5a3a34, glowA: 0xff5a2a, glowB: 0xffb040, mmBg: '#1a0e0b', mmFg: '#c9785e' }
@@ -1997,15 +2073,15 @@ const enemyDmgMult = ePower => clamp(1 + 2 * (ePower - player.power) / Math.max(
 //  ENEMIES: models, definitions, spawning
 // =====================================================================
 const ENEMY_DEFS = {
-  dreg:    { tier: 'minor', label: 'Dreg',    hp: 60,   speed: 4.3, r: 0.5,  h: 1.8, mh: 1.4, color: 0x55ccff, bolt: 6,  melee: 9 },
-  vandal:  { tier: 'minor', label: 'Vandal',  hp: 85,   speed: 3.6, r: 0.55, h: 2.0, mh: 1.6, color: 0x55ccff, bolt: 9 },
-  captain: { tier: 'major', label: 'Captain', hp: 320,  shield: 260, speed: 3.1, r: 0.6,  h: 2.4, mh: 1.9, color: 0x66e0ff, bolt: 15 },
-  knight:  { tier: 'major', label: 'Knight',  hp: 520,  shield: 300, speed: 2.7, r: 0.8,  h: 2.7, mh: 2.0, color: 0xff8a33, bolt: 22, melee: 26 },
+  dreg:    { tier: 'minor', label: NAMES.dreg,    hp: 60,   speed: 4.3, r: 0.5,  h: 1.8, mh: 1.4, color: 0x55ccff, bolt: 6,  melee: 9 },
+  vandal:  { tier: 'minor', label: NAMES.vandal,  hp: 85,   speed: 3.6, r: 0.55, h: 2.0, mh: 1.6, color: 0x55ccff, bolt: 9 },
+  captain: { tier: 'major', label: NAMES.captain, hp: 320,  shield: 260, speed: 3.1, r: 0.6,  h: 2.4, mh: 1.9, color: 0x66e0ff, bolt: 15 },
+  knight:  { tier: 'major', label: NAMES.knight,  hp: 520,  shield: 300, speed: 2.7, r: 0.8,  h: 2.7, mh: 2.0, color: 0xff8a33, bolt: 22, melee: 26 },
   sniper:  { tier: 'minor', label: NAMES.sniper, hp: 70, speed: 3.0, r: 0.5, h: 2.0, mh: 1.7, color: 0xff4455, bolt: 32 },
   shriek:  { tier: 'minor', label: NAMES.shriek,  hp: 28,  speed: 7.0, r: 0.4, h: 1.2, mh: 0.6, color: 0xff5522, bolt: 0, melee: 30, free: true },   // free = not counted against maxAlive
   orb:     { tier: 'minor', label: NAMES.orb, hp: 60, speed: 6.0, r: 0.8, h: 2.2, mh: 1.3, color: 0xb066ff, bolt: 30, free: true, noBar: true, noLoot: true, ghost: true },
   beacon:  { tier: 'minor', label: NAMES.beacon, hp: 250, speed: 0, r: 0.7, h: 3.4, mh: 2.4, color: 0x66ddff, bolt: 18, free: true, noBar: false, noLoot: true },
-  boss:    { tier: 'boss',  label: 'WARLORD KRAL', hp: TUNING.bossHp, shield: TUNING.bossShield, speed: 2.5, r: 1.35, h: 5.6, mh: 4.2, color: 0xff5a22, bolt: 14, melee: 40 }
+  boss:    { tier: 'boss',  label: NAMES.bossFull, hp: TUNING.bossHp, shield: TUNING.bossShield, speed: 2.5, r: 1.35, h: 5.6, mh: 4.2, color: 0xff5a22, bolt: 14, melee: 40 }
 };
 function mat(c, emissive) { return new THREE.MeshLambertMaterial(emissive ? { color: c, emissive, emissiveIntensity: 0.8 } : { color: c }); }
 function part(g, w, h, d, color, x, y, z, weak) {
@@ -2152,7 +2228,7 @@ function spawnEnemy(type, at, opts) {
   root.scale.setScalar(0.3);
   scene.add(root); enemies.push(root);
   fx('ring', p.x, 0.1, p.z, def.color, 2.2, 0.8, 0.8);
-  if (type === 'boss') { showBanner('WARLORD KRAL', 'Boss incoming'); sweep(70, 40, 1.0, 'sawtooth', 0.15); }
+  if (type === 'boss') { showBanner(NAMES.bossFull, 'Boss incoming'); sweep(70, 40, 1.0, 'sawtooth', 0.15); }
   if (type === 'orb') u.tintHex = 0x4a1a90; else if (type === 'beacon') u.tintHex = 0x2288aa;
   if (type === 'orb' || type === 'beacon') { const col = ELEMENTS[opts.element || element].color; u.element = opts.element || element; model.traverse(o => { if (o.material && o.material.color && o.material.transparent === false) { if (type === 'orb') o.material.color.setHex(col); } }); }
   return root;
@@ -2175,7 +2251,7 @@ function removeEnemy(e) {
 function dealDamage(e, dmg, o = {}) {
   const u = e.userData;
   if (u.dead || gt < u.spawnUntil) return 0;
-  if (u.invuln) { u.immuneHits = (u.immuneHits | 0) + 1; return 0; }    // Aegis gate: Kral takes exactly 0
+  if (u.invuln) { u.immuneHits = (u.immuneHits | 0) + 1; return 0; }    // Ward gate: the boss takes exactly 0
   if (gt < u.vulnUntil) dmg *= u.vulnMult || 1.25;                      // Exposed / stunned windows
   dmg *= o.ability ? clamp(playerDmgMult(u.power), 0.85, 1.3) : playerDmgMult(u.power);   // grenades/supers: gentler power-gap penalty
   const bw = o.weapon || o.bonusWeapon;
@@ -2184,13 +2260,13 @@ function dealDamage(e, dmg, o = {}) {
   let hpDmg = dmg;
   if (u.shield > 0) {
     const el = o.element || 'kinetic';
-    const m = el === u.element ? 1.5 : (el === 'kinetic' ? 0.8 : 0.85);
+    const m = (el === u.element || o.superHit) ? 1.5 : (el === 'kinetic' ? 0.8 : 0.85);   // v9 (S2): the Super always counts as a shield match, so it hits ~28-30% of a boss whatever its shield element
     const sd = dmg * m;
     if (sd <= u.shield) { u.shield -= sd; hpDmg = 0; }
     else { hpDmg = (sd - u.shield) / m; u.shield = 0; shieldBroken(e); }
   }
   u.hp -= hpDmg;
-  if (u.gateFloor && u.hp < u.gateFloor) u.hp = u.gateFloor;           // a strike Kral cannot be killed (or skip a gate) before both Aegis gates have run
+  if (u.gateFloor && u.hp < u.gateFloor) u.hp = u.gateFloor;           // a strike boss cannot be killed (or skip a gate) before both Ward gates have run
   u.flashUntil = gt + 0.06;
   if (u.hp <= 0) killEnemy(e, o);
   return dmg;
@@ -2210,14 +2286,14 @@ function killEnemy(e, o = {}) {
   const x = e.position.x, z = e.position.z, tier = u.tier;
   if (qaEmit) qaEmit('kill', { enemy: u.type, tier, x, z, crit: !!o.crit, silent: !!(o.selfDestruct || u.routed) });
   fx('burst', x, e.position.y + u.def.h * 0.5, z, u.def.color, u.def.h * 0.8, 0.3, 0.6);
-  if (u.def.noLoot) {      // orbs / Aegis Beacons: pop, no rewards
+  if (u.def.noLoot) {      // orbs / Ward Beacons: pop, no rewards
     removeEnemy(e);
     if (u.type === 'beacon') beaconDown(e);
     else if (u.type === 'orb') { fx('ring', x, 0.1, z, u.def.color, 3, 0.4, 0.8); sweep(500, 120, 0.2, 'triangle', 0.06); }
     return;
   }
   if (u.type === 'shriek' && u.hs === 'charge') fx('ring', x, 0.1, z, 0xff5522, 1.6, 0.25, 0.8);
-  if (o.selfDestruct || u.routed) { removeEnemy(e); return; }   // a Shriek that detonates / a routed enemy: no XP, Super or drops
+  if (o.selfDestruct || u.routed) { removeEnemy(e); return; }   // a Fusebug that detonates / a routed enemy: no XP, Super or drops
   if (activity.mode === 'strike') strikeKillStat(o);
   if (tier === 'boss') { fx('ring', x, 0.1, z, 0xff8833, 14, 0.9, 0.8); sweep(120, 30, 1.2, 'sawtooth', 0.2); }
   removeEnemy(e);
@@ -2227,7 +2303,7 @@ function killEnemy(e, o = {}) {
   if (!o.noSuper) addSuper((tier === 'minor' ? 6 : tier === 'major' ? 18 : 50) * (player.armorPerks.harmony ? AEV('harmony', 'gain') : 1));
   // perks on kill (only for direct weapon kills)
   exoXpOnKill(o, tier);
-  if (tier === 'boss') { const c = randInt(1, 2); addMats(0, 0, c); if (activity.mode === 'strike') strikeCiphers(c); toast('+' + c + ' Exotic Cipher' + (c > 1 ? 's' : ''), '#ffd45a'); }
+  if (tier === 'boss') { const c = randInt(1, 2); addMats(0, 0, c); if (activity.mode === 'strike') strikeCiphers(c); toast('+' + c + ' ' + NAMES.seal + (c > 1 ? 's' : ''), '#ffd45a'); }
   const w = o.weapon;
   if (w) {
     if (hasPerk(w, 'rampage')) { buffs.rampStacks = Math.min(3, (gt < buffs.rampUntil ? buffs.rampStacks : 0) + 1); buffs.rampUntil = gt + 4; }
@@ -2525,7 +2601,7 @@ function updateEnemies(dt) {
 // =====================================================================
 let spawnHook = null;
 let spawnQueue = [], bossQueue = [], waveState = 'pre', waveTimer = 0, nextSpawnAt = 0;
-// P0-3 wave composition (formulas == the table in the spec). Snipers / Shrieks are inserted after the first 3 spawns; Shrieks come in packs.
+// P0-3 wave composition (formulas == the table in the spec). Snipers / Fusebugs (shriek) are inserted after the first 3 spawns; Fusebugs come in packs.
 function waveCounts(w) {
   const boss = w % 4 === 0;
   if (boss) return { dreg: 4, vandal: 3, captain: 0, knight: 0, sniper: 0, shriek: 0, boss: 1 };
@@ -2573,7 +2649,7 @@ function startWave(n) {
   wave = n; spawnQueue = buildWaveList(n); bossQueue = []; waveState = 'pre'; waveTimer = gt + 3.2;
   activity.onWaveStart(n);
   showBanner(changed ? arenaTheme.name : 'WAVE ' + n, changed ? 'WAVE ' + n + ' \u2022 ' + arenaTheme.sub : (n % 4 === 0 ? 'BOSS WAVE' : 'Zone power ' + zonePower()));
-  if (changed) toast('Arena: ' + arenaTheme.name, '#ffd45a');
+  if (changed) { const w0 = n, nm = arenaTheme.name; setTimeout(() => { if (wave === w0 && !inter) toast('Arena: ' + nm, '#ffd45a'); }, 3100); }   // v9 (S4): queued behind the 3 s wave banner instead of overlapping its subtitle
   saveSoon();
 }
 // Patrol payouts are scaled by PATROL_PAYOUT with unbiased rounding (so a long run lands on the fraction, not on a rounding artefact).
@@ -2589,7 +2665,7 @@ function waveClear() {
   const bg = patrolRound(bg0 * PATROL_PAYOUT), bs = Math.max(boss ? 1 : 0, patrolRound(bs0 * PATROL_PAYOUT));
   addMats(bg, bs);
   for (let i = projs.length - 1; i >= 0; i--) if (projs[i].team === 'e') removeProj(i);
-  showBanner('WAVE ' + wave + ' CLEARED', '+' + bg + ' Glimmer' + (bs ? ' +' + bs + ' Shard' + (bs > 1 ? 's' : '') : '') + '  \u2022  Open the chest, visit the shop');
+  showBanner('WAVE ' + wave + ' CLEARED', '+' + bg + ' ' + NAMES.brass + (bs ? ' +' + bs + ' ' + NAMES.core + (bs > 1 ? 's' : '') : '') + '  \u2022  Open the chest, visit the shop');
   enterIntermission(null);
   saveSoon();
 }
@@ -2604,7 +2680,7 @@ function updateWaves() {
 }
 
 // =====================================================================
-//  P0-3 ENEMY ROLES: Marksman (sniper), Shriek (suicide charger), Void Orb, Aegis Beacon, and the 3-phase Warlord Kral
+//  P0-3 ENEMY ROLES: Marksman (sniper), Fusebug (shriek: suicide charger), Gloom Orb, Ward Beacon, and the 3-phase Chieftain Braskk
 // =====================================================================
 // ---- pooled laser ribbons (max 3) ----
 const lasers = [], laserGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -2639,6 +2715,7 @@ function sniperPerch(e) {
   }
   return best;
 }
+const SNIPER_GAP = 1.0;   // min seconds between two snipers' shots (v9 S1: spec says staggered, no double-tap kills)
 function sniperCancel(e, cd) { const u = e.userData; releaseLaser(u); u.sstate = 'relocate'; u.cool = Math.max(u.cool, gt + cd); }
 AI.sniper = function (e, dt, dist) {
   const u = e.userData, sp = u.def.speed;
@@ -2656,14 +2733,20 @@ AI.sniper = function (e, dt, dist) {
       else aimLaser(u.laser, _sm.x, _sm.y, _sm.z, u.lockX, u.lockY, u.lockZ, 0.06, 0xff2233, 0.2 + 0.8 * (t / SNIPER.track), true);
     }
     if (!u.lockClick && locked) { u.lockClick = true; playTone(90, 0.04, 'square', 0.08); if (navigator.vibrate) try { navigator.vibrate(20); } catch (_) {} }
-    if (t >= SNIPER.track + SNIPER.lock) {                           // FIRE at the locked point
+    if (t >= SNIPER.track + SNIPER.lock && gt - lastSniperShot >= SNIPER_GAP) {   // FIRE at the locked point (never within SNIPER_GAP of another sniper's shot)
       sniperMuzzle(e, _sm);
       const dir = new THREE.Vector3(u.lockX, u.lockY, u.lockZ).sub(_sm).normalize();
       spawnProjectile({ team: 'e', kind: 'bolt', x: _sm.x, y: _sm.y, z: _sm.z, vx: dir.x * 60, vy: dir.y * 60, vz: dir.z * 60, dmg: u.def.bolt, color: 0xff2233, size: 0.18, power: u.power, tier: u.tier, life: 1.2 });
       playTone(110, 0.15, 'square', 0.08); sweep(900, 200, 0.1, 'sawtooth', 0.06);
       releaseLaser(u); u.sstate = 'relocate'; const recent = gt - lastSniperShot < 2; lastSniperShot = gt; u.lockClick = false;
       u.cool = gt + rand(5, 7) + (recent ? 1 : 0); u.perchAt = 0;
-      for (const o of enemies) if (o !== e && o.userData.type === 'sniper' && gt - 2 < lastSniperShot) o.userData.cool = Math.max(o.userData.cool, gt + 1);
+      for (const o of enemies) if (o !== e && o.userData.type === 'sniper') {
+        const ou = o.userData; ou.cool = Math.max(ou.cool, gt + 1);
+        if (ou.sstate === 'aim') {                                   // v9 (S1): a sniper already tracking / locked is pushed back so its shot lands >= SNIPER_GAP after this one
+          const fireAt = ou.aimStart + SNIPER.track + SNIPER.lock;
+          if (fireAt < gt + SNIPER_GAP + 0.05) { ou.aimStart += gt + SNIPER_GAP + 0.05 - fireAt; ou.lockClick = false; }
+        }
+      }
     } else if (Math.floor(t * 10) !== u.lastTick && t < SNIPER.track) { u.lastTick = Math.floor(t * 10); if (u.lastTick % 3 === 0) playTone(300 + 900 * (t / SNIPER.track), 0.06, 'sine', 0.05); }
     return;
   }
@@ -2683,7 +2766,7 @@ AI.sniper = function (e, dt, dist) {
 };
 const dx0 = e => camera.position.x - e.position.x, dz0 = e => camera.position.z - e.position.z;
 
-// ---- Shriek ----
+// ---- Fusebug (type 'shriek') ----
 AI.shriek = function (e, dt, dist, dx, dz) {
   const u = e.userData, sp = u.def.speed;
   if (!u.hs) { u.hs = 'orbit'; u.hsUntil = gt + rand(0.9, 1.6); u.strafeDir = Math.random() < 0.5 ? 1 : -1; }
@@ -2726,7 +2809,7 @@ function shriekExplode(e) {
   killEnemy(e, { selfDestruct: true });
 }
 
-// ---- Void Orb (boss attack; an enemy so any weapon can shoot it down) ----
+// ---- Gloom Orb (type 'orb') (boss attack; an enemy so any weapon can shoot it down) ----
 AI.orb = function (e, dt, dist, dx, dz) {
   const u = e.userData;
   if (u.hx === undefined) { u.hx = dx / dist; u.hz = dz / dist; u.born = gt; }
@@ -2774,12 +2857,12 @@ function bossShieldBroken(e) {
   const u = e.userData; if (!u.bi) bossInit(e); if (u.fl.p2start) return; u.fl.p2start = true;
   u.phase = 2; u.frozenUntil = gt + 1.5; u.vulnUntil = gt + 4; u.vulnMult = 1.25; u.chargeAt = gt + 4; u.nextAtk = gt + 1.5 + rand(1.2, 2.6); u.fl.p2At = gt + 1.5;
   u.act = null; u.burst = null; u.ch = null; u.muzzle.visible = false; if (u.disc) u.disc.visible = false; if (u.chLine) u.chLine.visible = false;
-  showBanner("KRAL'S SHIELD BREAKS", 'Exposed \u2014 hit him now!'); sweep(600, 80, 0.7, 'sawtooth', 0.12);
+  showBanner(NAMES.boss.toUpperCase() + "'S SHIELD BREAKS", 'Exposed \u2014 hit him now!'); sweep(600, 80, 0.7, 'sawtooth', 0.12);
   fx('ring', e.position.x, 0.2, e.position.z, u.bossCol, 8, 0.8, 0.8);
 }
 function bossLastStand(e) {
   const u = e.userData; u.fl.p3 = true; u.phase = 3; u.enraged = true;
-  showBanner('KRAL IS ENRAGED', 'Last Stand'); sweep(90, 200, 0.8, 'sawtooth', 0.14);
+  showBanner(NAMES.boss.toUpperCase() + ' IS ENRAGED', 'Last Stand'); sweep(90, 200, 0.8, 'sawtooth', 0.14);
   const add = ['dreg', 'dreg', 'dreg', 'shriek', 'shriek'];
   if (!u.strike && wave >= 12) add.push('knight');
   bossAdds(add);
@@ -2796,7 +2879,7 @@ function bossCleanup(e) {
   u.ch = null;
 }
 
-// ---- Aegis gates (strike boss only) ----
+// ---- Ward gates (strike boss only) ----
 function startGate(e) {
   const u = e.userData, first = u.gatesDone === 0, n = first ? 2 : 3;
   u.gate = { n, stun: first ? 6 : 5, nextAdds: gt + 10 }; u.invuln = true; u.act = null; u.burst = null; u.muzzle.visible = false; if (u.disc) u.disc.visible = false;
@@ -2863,7 +2946,7 @@ AI.boss = function (e, dt, dist, dx, dz) {
   u.atkN++;
   const r = Math.random();
   if (p2 && gt >= u.chargeAt && dist > 6 && (r < 0.4 || gt >= u.chargeAt + 4)) return bossCharge(e, dx, dz, dist);
-  if (u.atkN % 3 === 0 && typeCount('orb') < 2) {                   // Void Orb
+  if (u.atkN % 3 === 0 && typeCount('orb') < 2) {                   // Gloom Orb
     startAct(e, 1.0, b => {
       const d = Math.hypot(camera.position.x - b.position.x, camera.position.z - b.position.z) || 1;
       const ox = b.position.x + (camera.position.x - b.position.x) / d * 2.2, oz = b.position.z + (camera.position.z - b.position.z) / d * 2.2;
@@ -3176,9 +3259,9 @@ function cycleWeapon() {
 // =====================================================================
 const GRENADE_COOLDOWN = 8;
 // ---- ability damage. S mirrors enemy health scaling (so abilities keep up with wave/level), G is the player's own gear power.
-//   Grenade   = 260 x S x G                       radius 6 x (1 + min(.25, Mobility x .003)), 100% -> 70% falloff
+//   Grenade   = 260 x S x G                       radius 6 x (1 + min(.25, Agility x .003)), 100% -> 70% falloff
 //   Super     = tier base x S x G x R x falloff   minor 1000 / major 480 / boss 1500, range 16 m, 3 pulses (50/25/25%)
-//   cooldown  = 8 s x (1 - min(.35, Recovery x .005)), halved by Astral Verse;  R = 1 + min(.30, Resilience x .004)
+//   cooldown  = 8 s x (1 - min(.35, Mending x .005)), halved by Orrery Hood;  R = 1 + min(.30, Fortitude x .004)
 const abilityS = () => hpScaleFor(zonePower());      // mirrors enemy health scaling at ANY power
 const abilityG = () => 1 + softPow(player.power - 100, 0.002, 600) ;
 const grenadeDamage = () => 260 * abilityS() * abilityG() * (1 + 0.2 * Math.min(3, player.ap.grenadier || 0));
@@ -3202,7 +3285,11 @@ function throwGrenade() {
   setStatus('GRENADE', 800);
 }
 function useSuper() {
-  if (player.super < 100 || player.dead || paused) return;
+  if (player.dead) return;
+  if (player.super < 100 || paused) {   // v9: never a silent miss (a hold can complete just as the bar drops, or while the game is paused)
+    const n = performance.now(); if (n - (useSuper.missAt || 0) > 1200) { useSuper.missAt = n; toast(paused ? 'Game paused: SUPER not used' : 'SUPER not ready', '#ff9a8a'); }
+    return;
+  }
   player.super = 0; addSuper.shown = false;
   sweep(120, 35, 0.7, 'sawtooth', 0.18); playTone(120, 0.3, 'square', 0.1);
   const flash = document.createElement('div');
@@ -3229,7 +3316,7 @@ function runSuperPulse(f, first) {
     const dist = Math.hypot(e.position.x - cx, e.position.z - cz);
     if (dist < SUPER_RANGE + u.r) {
       const dmg = SUPER_BASE[u.tier] * M * (1 - 0.35 * Math.min(1, dist / SUPER_RANGE)) * f;
-      const dealt = dealDamage(e, dmg, { element: 'solar', noSuper: true, ability: true });
+      const dealt = dealDamage(e, dmg, { element: 'solar', noSuper: true, ability: true, superHit: true });
       if (dealt > 0) showDamageNumber(new THREE.Vector3(e.position.x, e.position.y + u.def.h, e.position.z), dealt, true);
       if (!u.dead && u.tier !== 'boss' && first) { const k = 2.5 / (dist || 1); e.position.x += (e.position.x - cx) * k; e.position.z += (e.position.z - cz) * k; }
     }
@@ -3240,7 +3327,7 @@ function updateSuper() {
 }
 
 // =====================================================================
-//  MATERIAL DROPS (Glimmer + Legendary Shards) - orbs that fly to the player
+//  MATERIAL DROPS (Brass + Kiln Cores) - orbs that fly to the player
 // =====================================================================
 const orbs = [];
 const orbGeoG = new THREE.OctahedronGeometry(0.16), orbGeoS = new THREE.OctahedronGeometry(0.22);
@@ -3254,12 +3341,12 @@ function spawnOrb(kind, amt, x, z) {
 function collectOrb(i, quiet) {
   const o = orbs[i]; scene.remove(o.m); orbs.splice(i, 1);
   const no = player.ap ? (player.ap.orbs || 0) : 0; if (no && !quiet) addSuper(3 * no);
-  if (activity.mode === 'strike' && STRIKE.stageState !== 'results') {     // strike orbs are held until the strike is completed (25% of Glimmer on retreat)
+  if (activity.mode === 'strike' && STRIKE.stageState !== 'results') {     // strike orbs are held until the strike is completed (25% of Brass on retreat)
     if (o.kind === 'g') STRIKE.pendG += Math.round(o.amt * (1 + 0.2 * Math.min(3, no))); else STRIKE.pendS += o.amt;
     if (!quiet) playTone(o.kind === 's' ? 1100 : 820, 0.06, 'sine', 0.04);
     return;
   }
-  if (o.kind === 'g') addMats(o.amt * (1 + 0.2 * Math.min(3, no)), 0); else { addMats(0, o.amt); if (!quiet) toast('+' + o.amt + ' Legendary Shard' + (o.amt > 1 ? 's' : ''), '#c58cff'); }
+  if (o.kind === 'g') addMats(o.amt * (1 + 0.2 * Math.min(3, no)), 0); else { addMats(0, o.amt); if (!quiet) toast('+' + o.amt + ' ' + NAMES.core + (o.amt > 1 ? 's' : ''), '#c58cff'); }
   if (!quiet) playTone(o.kind === 's' ? 1100 : 820, 0.06, 'sine', 0.04);
 }
 function collectAllOrbs() { for (let i = orbs.length - 1; i >= 0; i--) collectOrb(i, true); }
@@ -3291,7 +3378,7 @@ function updateOrbs(dt) {
   }
 }
 const orbPickupRadius = () => 0.9 * (1 + 2 * Math.min(2, (player.ap && player.ap.orbs) || 0));
-const matsHTML = () => '<span class="mg">\u25C6 ' + fmtN(mats.glimmer) + ' Glimmer</span>  <span class="ms">\u2756 ' + fmtN(mats.shards) + ' Shards</span>' + (mats.ciphers ? '  <span class="mc">\u25C8 ' + fmtN(mats.ciphers) + ' Ciphers</span>' : '');
+const matsHTML = () => '<span class="mg">\u25C6 ' + fmtN(mats.glimmer) + ' ' + NAMES.brass + '</span>  <span class="ms">\u2756 ' + fmtN(mats.shards) + ' ' + NAMES.coreShort + '</span>' + (mats.ciphers ? '  <span class="mcx">\u25C8 ' + fmtN(mats.ciphers) + ' ' + NAMES.seals + '</span>' : '');
 
 // =====================================================================
 //  INTERMISSION: reward chest + shop vendor between waves
@@ -3334,11 +3421,15 @@ function buildChest(x, z, opened) {
   return c;
 }
 let signTex = null;
+function paintSign(c) {
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 256, 64);
+  g.fillStyle = 'rgba(10,30,44,0.8)'; g.fillRect(0, 0, 256, 64); g.strokeStyle = '#66e6ff'; g.lineWidth = 4; g.strokeRect(2, 2, 252, 60);
+  g.fillStyle = '#9ff0ff'; g.font = 'bold 28px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(NAMES.vendor, 128, 34);
+}
 function signTexture() {
   if (signTex) return signTex;
-  const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
-  g.fillStyle = 'rgba(10,30,44,0.8)'; g.fillRect(0, 0, 256, 64); g.strokeStyle = '#66e6ff'; g.lineWidth = 4; g.strokeRect(2, 2, 252, 60);
-  g.fillStyle = '#9ff0ff'; g.font = 'bold 28px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('QUARTERMASTER', 128, 34);
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64; paintSign(c);
   signTex = new THREE.CanvasTexture(c); return signTex;
 }
 function buildVendor(x, z) {
@@ -3439,8 +3530,10 @@ function startNextWave() {
   startWave(wave + 1);
 }
 
+const HARD_CHEST_R = 4.5, HARD_VENDOR_R = 5;   // v9: absolute backstop inside openChest / openShop (taps, clicks, the gamepad and F use INTERACT_R first)
 function openChest() {
   if (!inter || inter.chestOpened) return;
+  if (interactDist(inter.chest) > HARD_CHEST_R) { moveCloser(); return; }
   inter.chestOpened = true;
   const c = inter.chest; c.opened = true; c.openT = 0; c.glow.visible = true;
   fx('burst', c.x, 1.0, c.z, 0xffd966, 4, 0.5, 0.6); fx('ring', c.x, 0.1, c.z, 0xffd966, 7, 0.7, 0.9);
@@ -3479,6 +3572,7 @@ function showChestPop(rows) {
 const shopOpen = () => $('shop-overlay').style.display === 'flex';
 function openShop() {
   if (!inter || shopOpen() || waveState !== 'inter') return;
+  if (interactDist(inter.vendor) > HARD_VENDOR_R) { moveCloser(); return; }
   paused = true; fireHeld = false; mouseHeld = false;
   $('shop-overlay').style.display = 'flex'; $('prompt-btn').style.display = 'none';
   if (document.exitPointerLock) document.exitPointerLock();
@@ -3529,10 +3623,16 @@ $('shop-close').onclick = closeShop;
 $('inter-start').onclick = startNextWave;
 $('inter-gear').onclick = () => { if (!paused) toggleInventory(); };
 $('inter-best').onclick = () => { if (!paused) equipBest(); };
-$('prompt-btn').onclick = openShop;
+$('prompt-btn').onclick = () => { if (inter && waveState === 'inter' && interactDist(inter.vendor) >= INTERACT_R + 0.25) return; openShop(); };   // v9: also range-checked (a stale prompt must not open the shop from afar)
 
 // ---- world tap / key interaction
-function tryInteractRay(nx, ny) {
+// v9: ONE interact range for everything: the walk-up SHOP prompt, a tap / click on the chest or the vendor, F, and controller X.
+// (v8 let a tap open them from up to 14 m away: a ray hit was enough.) Too far -> a 'Move closer' toast (taps / clicks only; F and X stay silent).
+const INTERACT_R = 4;   // metres, horizontal distance player -> chest / vendor
+const interactDist = o => Math.hypot(camera.position.x - o.x, camera.position.z - o.z);
+let moveCloserAt = 0;
+function moveCloser() { const n = performance.now(); if (n - moveCloserAt > 900) { moveCloserAt = n; toast('Move closer', '#ffd45a'); } }
+function tryInteractRay(nx, ny, warn) {
   if (!inter || waveState !== 'inter' || paused) return false;
   raycaster.setFromCamera(v2.set(nx, ny), camera);
   const hits = raycaster.intersectObjects([inter.chest.g, inter.vendor.g], true);
@@ -3540,14 +3640,14 @@ function tryInteractRay(nx, ny) {
   const h = hits[0];
   if (h.distance > 14 || h.distance > rayBoxesDist(raycaster.ray.origin, raycaster.ray.direction)) return false;
   let o = h.object; while (o && o !== inter.chest.g && o !== inter.vendor.g) o = o.parent;
-  if (o === inter.chest.g) { if (!inter.chestOpened) { openChest(); return true; } return false; }
-  if (o === inter.vendor.g) { openShop(); return true; }
+  if (o === inter.chest.g) { if (inter.chestOpened) return false; if (interactDist(inter.chest) > INTERACT_R) { if (warn) moveCloser(); return false; } openChest(); return true; }
+  if (o === inter.vendor.g) { if (interactDist(inter.vendor) > INTERACT_R) { if (warn) moveCloser(); return false; } openShop(); return true; }
   return false;
 }
 function interactNearest() {
   if (!inter || waveState !== 'inter' || paused) return;
-  const dc = Math.hypot(camera.position.x - inter.chest.x, camera.position.z - inter.chest.z), dv = Math.hypot(camera.position.x - inter.vendor.x, camera.position.z - inter.vendor.z);
-  if (!inter.chestOpened && dc < 4.5 && dc <= dv) openChest(); else if (dv < 5) openShop();
+  const dc = interactDist(inter.chest), dv = interactDist(inter.vendor);
+  if (!inter.chestOpened && dc < INTERACT_R && dc <= dv) openChest(); else if (dv < INTERACT_R) openShop();
 }
 
 const _mv = new THREE.Vector3(), _mp = new THREE.Vector3();
@@ -3584,7 +3684,7 @@ function updateInter(dt) {
   const px = camera.position.x, pz = camera.position.z;
   const dc = Math.hypot(px - c.x, pz - c.z), dv = Math.hypot(px - v.x, pz - v.z);
   if (!inter.chestOpened && dc < 2.4 && !player.dead) openChest();
-  const near = dv < 5 && !paused, pb = $('prompt-btn'), want = near ? 'block' : 'none';
+  const near = dv < INTERACT_R && !paused, pb = $('prompt-btn'), want = near ? 'block' : 'none';
   if (pb.style.display !== want && !shopOpen()) pb.style.display = want;
   placeMarker(inter.mkShop, v.x, 4.6, v.z, 'SHOP ' + Math.round(dv) + 'm', false);
   if (inter.chestOpened) { if (inter.mkChest._d !== 'none') { inter.mkChest.style.display = 'none'; inter.mkChest._d = 'none'; } }
@@ -3597,19 +3697,36 @@ function updateInter(dt) {
 //  MINIMAP (north-up, whole arena)
 // =====================================================================
 const mmEl = $('minimap'), mmCtx = mmEl.getContext('2d'), MM = 144, MMS = MM / (ARENA * 2 + 4);
-const mmStatic = document.createElement('canvas'); mmStatic.width = mmStatic.height = MM;
-function drawMmStatic() {
-  const g = mmStatic.getContext('2d');
-  g.fillStyle = arenaTheme.mmBg; g.fillRect(0, 0, MM, MM);
-  g.fillStyle = arenaTheme.mmFg;
+// v9: the minimap no longer relies on a cached bitmap or on the visible canvas keeping its pixels (a phone can discard a 2D canvas backing store after an app switch /
+// fullscreen toggle / memory trim: the v8 map then stayed see-through and the arrow left a white trail). Every redraw clears the canvas and repaints background + cover.
+const mmStatic = document.createElement('canvas'); mmStatic.width = mmStatic.height = MM;   // kept as a mirror of the cover layer (QA tooling inspects it); the visible map no longer depends on it
+function drawMmStatic(g) {
+  if (!g) { drawMmStatic(mmStatic.getContext('2d')); g = mmCtx; }
+  g = g || mmCtx; g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.clearRect(0, 0, MM, MM);
+  g.fillStyle = (arenaTheme && arenaTheme.mmBg) || '#10151c'; g.fillRect(0, 0, MM, MM);
+  g.fillStyle = (arenaTheme && arenaTheme.mmFg) || '#3a4658';
   for (const b of boxes) g.fillRect((b.x0 + ARENA + 2) * MMS, (b.z0 + ARENA + 2) * MMS, Math.max(1.5, (b.x1 - b.x0) * MMS), Math.max(1.5, (b.z1 - b.z0) * MMS));
 }
-drawMmStatic(); arenaMmHook = drawMmStatic;
+arenaMmHook = () => { mmT = 1; };
 const mmX = x => (x + ARENA + 2) * MMS, mmZ = z => (z + ARENA + 2) * MMS;
-let mmT = 0;
+let mmT = 0, mmT2 = 0;
+function mmRefresh() { mmT = 1; }   // next drawMinimap tick repaints everything
+// Rebuild EVERY cached 2D canvas (minimap bitmap + its cover mirror, the vendor sign texture). Browsers may discard canvas backing stores when the app is backgrounded,
+// goes fullscreen / leaves it, or the GPU context is lost; a discarded canvas comes back transparent and nothing would repaint it.
+function rebuildCanvases() {
+  try {
+    mmEl.width = MM; mmEl.height = MM;            // re-allocates the bitmap (also resets state)
+    mmStatic.width = MM; mmStatic.height = MM;
+    drawMmStatic(mmCtx); drawMmStatic(mmStatic.getContext('2d'));
+  } catch (e) {}
+  try { if (signTex && signTex.image) { paintSign(signTex.image); signTex.needsUpdate = true; } } catch (e) {}
+  mmT = 1;
+}
+for (const [tgt, ev] of [[document, 'visibilitychange'], [document, 'fullscreenchange'], [document, 'webkitfullscreenchange'], [window, 'pageshow'], [mmEl, 'contextrestored']]) tgt.addEventListener(ev, rebuildCanvases);
+for (const [tgt, ev] of [[window, 'resize'], [window, 'orientationchange'], [mmEl, 'contextlost']]) tgt.addEventListener(ev, mmRefresh);
 function drawMinimap(dt) {
   mmT += dt; if (mmT < 0.1) return; mmT = 0;
-  const g = mmCtx; g.drawImage(mmStatic, 0, 0);
+  const g = mmCtx; drawMmStatic(g); if (!(mmT2 = (mmT2 + 1) % 10)) drawMmStatic(mmStatic.getContext('2d'));
   if (inter && waveState === 'inter') {
     if (!inter.chestOpened) { g.fillStyle = '#ffd45a'; g.fillRect(mmX(inter.chest.x) - 5, mmZ(inter.chest.z) - 5, 10, 10); }
     g.fillStyle = '#6fe6ff'; g.beginPath(); const sx = mmX(inter.vendor.x), sz = mmZ(inter.vendor.z); g.moveTo(sx, sz - 7); g.lineTo(sx + 7, sz); g.lineTo(sx, sz + 7); g.lineTo(sx - 7, sz); g.fill();
@@ -3959,7 +4076,7 @@ function exoLethal() {
     const f = AEV('stoic', 'restore');
     player.health = player.maxHealth * f; player.shield = player.maxShield * f; player.invulnUntil = gt + (ACAT() ? 3.5 : 2); player.dead = false;
     fx('ring', camera.position.x, 0.15, camera.position.z, 0xff7733, 9, 0.8, 0.9); fx('burst', camera.position.x, 1, camera.position.z, 0xff9944, 3, 0.5, 0.5);
-    setStatus('PHOENIX RESOLVE', 2200); toast('Phoenix Resolve saved you!', '#ff9944'); sweep(200, 900, 0.5, 'triangle', 0.1);
+    setStatus(EXOTIC_PERKS.stoic.name.toUpperCase(), 2200); toast(EXOTIC_PERKS.stoic.name + ' saved you!', '#ff9944'); sweep(200, 900, 0.5, 'triangle', 0.1);
     return true;
   }
   return false;
@@ -3976,9 +4093,9 @@ function updatePerkHud() {
   const w = curWeapon(), id = exoId(w), P = player.armorPerks, out = [];
   const chip = (txt, col) => out.push('<b style="color:' + col + '">' + txt + '</b>');
   if (id === 'memento') { if (gt < buffs.mementoUntil) chip('TALLY +' + pct(EV(w, 'mult')) + '% ' + (buffs.mementoUntil - gt).toFixed(1) + 's', '#ff5566'); else chip('TALLY: precision kill', '#a55'); }
-  if (id === 'rush') { if (gt < xs.rushUntil) chip('BLOODRUSH x' + xs.rushStacks + ' ' + (xs.rushUntil - gt).toFixed(1) + 's', '#ff4477'); else chip('BLOODRUSH: get kills', '#a46'); }
+  if (id === 'rush') { if (gt < xs.rushUntil) chip(EXOTIC_PERKS.rush.name.toUpperCase() + ' x' + xs.rushStacks + ' ' + (xs.rushUntil - gt).toFixed(1) + 's', '#ff4477'); else chip(EXOTIC_PERKS.rush.name.toUpperCase() + ': get kills', '#a46'); }
   if (id === 'storm') chip('CHARGE ' + xs.stormCharge + '/' + EV(w, 'need'), '#66aaff');
-  if (id === 'thunder') chip('ARC ' + (buffs.thunderHits % EV(w, 'n')) + '/' + EV(w, 'n'), '#77ddff');
+  if (id === 'thunder') chip(ELEMENTS.arc.name.toUpperCase() + ' ' + (buffs.thunderHits % EV(w, 'n')) + '/' + EV(w, 'n'), '#77ddff');
   if (id === 'hammer') chip('FEED ' + (xs.hammerKills % (exoCat(w) ? 2 : 3)) + '/' + (exoCat(w) ? 2 : 3), '#ffaa22');
   if (P.stoic) chip(gt >= xs.phoenixAt ? 'PHOENIX READY' : 'PHOENIX ' + Math.ceil(xs.phoenixAt - gt) + 's', gt >= xs.phoenixAt ? '#ff9944' : '#a86');
   if (P.inmost) chip(gt >= xs.novaAt ? 'NOVA READY' : 'NOVA ' + Math.ceil(xs.novaAt - gt) + 's', gt >= xs.novaAt ? '#fff0a0' : '#aa9');
@@ -4126,12 +4243,12 @@ function exoXpOnKill(o, tier) {
   for (const s of ARMOR_SLOTS) { const it = getItem(equip[s]); if (it && it.rarity === 3) addExoXp(it, xp); }
 }
 function perkChips(w, chip) {
-  if (w && hasPerk(w, 'feedingfrenzy') && gt < pk.feedUntil) chip('FRENZY x' + pk.feedStacks, '#ffb347');
-  if (w && hasPerk(w, 'swashbuckler') && gt < pk.swashUntil) chip('SWASH x' + pk.swashStacks, '#ffd45a');
-  if (w && hasPerk(w, 'oneforall') && gt < pk.ofaUntil) chip('ONE FOR ALL', '#ffffff');
-  if (w && hasPerk(w, 'voltshot') && gt < pk.voltUntil) chip('VOLT', '#77ddff');
-  if (w && hasPerk(w, 'headseeker') && gt < pk.headUntil) chip('HEADSEEKER', '#ff8888');
-  if (w && hasPerk(w, 'frenzy') && inFrenzy()) chip('FRENZY', '#ff7744');
+  if (w && hasPerk(w, 'feedingfrenzy') && gt < pk.feedUntil) chip(PERKS.feedingfrenzy.name.toUpperCase() + ' x' + pk.feedStacks, '#ffb347');
+  if (w && hasPerk(w, 'swashbuckler') && gt < pk.swashUntil) chip(PERKS.swashbuckler.name.toUpperCase() + ' x' + pk.swashStacks, '#ffd45a');
+  if (w && hasPerk(w, 'oneforall') && gt < pk.ofaUntil) chip(PERKS.oneforall.name.toUpperCase(), '#ffffff');
+  if (w && hasPerk(w, 'voltshot') && gt < pk.voltUntil) chip(PERKS.voltshot.name.toUpperCase(), '#77ddff');
+  if (w && hasPerk(w, 'headseeker') && gt < pk.headUntil) chip(PERKS.headseeker.name.toUpperCase(), '#ff8888');
+  if (w && hasPerk(w, 'frenzy') && inFrenzy()) chip(PERKS.frenzy.name.toUpperCase(), '#ff7744');
   if (gt < pk.surgeUntil) chip('SURGE x' + pk.surgeStacks, '#8fd8ff');
 }
 
@@ -4140,9 +4257,9 @@ function perkChips(w, chip) {
 //  Patrol (the endless wave mode) is untouched except for its payout scale (PATROL_PAYOUT).
 // =====================================================================
 const STRIKE_DEFS = {
-  fallen_outpost: { id: 'fallen_outpost', name: NAMES.strikeFallenOutpost, tag: NAMES.strikeFallenOutpostTag, theme: 'default', arena: 0, stages: 4, par: 540, estMin: 9,
-    stageNames: ['BREACH', 'HOLD THE RELAY', 'OVERRUN', 'WARLORD KRAL'],
-    stageSubs: ['Eliminate all hostiles', 'Capture and hold the relay', 'Capture both relays', 'Defeat the Warlord'] }
+  fallen_outpost: { id: 'fallen_outpost', name: NAMES.strikeOutpost, tag: NAMES.strikeOutpostTag, theme: 'default', arena: 0, stages: 4, par: 540, estMin: 9,
+    stageNames: ['BREACH', 'HOLD THE RELAY', 'OVERRUN', NAMES.bossFull],
+    stageSubs: ['Eliminate all hostiles', 'Capture and hold the relay', 'Capture both relays', 'Defeat the ' + NAMES.bossTitle] }
 };
 const STAGE_XP = { 1: 120, 2: 160, 3: 200 };
 const STRIKE_REWARD = { glimmer: 450, glimmerMinBonus: 150, shards: 3, xp: 400, dailyMult: 1.5, retreat: 0.25 };
@@ -4338,7 +4455,7 @@ $('fail-retry').onclick = () => {
 function strikeElapsedFrozen() { const S = STRIKE; return S.elapsedBase + ((S.frozenAt !== null ? S.frozenAt : gt) - S.startedAt); }
 $('fail-retreat').onclick = () => {
   const S = STRIKE; if (S.stageState !== 'failed') return;
-  const g = Math.round(S.pendG * STRIKE_REWARD.retreat); if (g) { addMats(g, 0, 0); toast('Retreated: +' + g + ' Glimmer (25%)', '#ffd45a'); }
+  const g = Math.round(S.pendG * STRIKE_REWARD.retreat); if (g) { addMats(g, 0, 0); toast('Retreated: +' + g + ' ' + NAMES.brass + ' (25%)', '#ffd45a'); }
   $('fail-overlay').style.display = 'none'; leaveStrike();
 };
 // called from playerRespawn(): returns true when the player is out of revives (respawn is suppressed)
@@ -4402,7 +4519,7 @@ function renderResPanel() {
   const row = (a, b) => '<div class="rr"><span>' + a + '</span><b>' + b + '</b></div>';
   p.innerHTML = '<h3>STRIKE COMPLETE' + (r.newBest ? ' <span class="nb">NEW BEST</span>' : '') + '</h3>' +
     row('Time', fmtTime(r.time) + ' <small>(par ' + fmtTime(r.par) + ')</small>') + row('Deaths', r.deaths) + row('Kills', r.kills) + row('Precision', r.precision + '%') +
-    row('Glimmer', '+' + r.glimmer + (r.daily ? ' <small>(daily +50%)</small>' : '')) + row('Shards', '+' + r.shards) + row('Ciphers', '+' + r.ciphers) + row('XP', '+' + r.xp) + (r.exoXp ? row('Exotic XP', '+' + r.exoXp) : '') +
+    row(NAMES.brass, '+' + r.glimmer + (r.daily ? ' <small>(daily +50%)</small>' : '')) + row(NAMES.cores, '+' + r.shards) + row(NAMES.seals, '+' + r.ciphers) + row('XP', '+' + r.xp) + (r.exoXp ? row('Exotic XP', '+' + r.exoXp) : '') +
     '<div class="acts"><button id="rs-again" class="go" type="button">AGAIN</button><button id="rs-best" type="button">EQUIP BEST</button><button id="rs-miss" type="button">MISSIONS</button></div>';
   p.style.display = 'block';
   $('rs-again').onclick = () => { resultsLeave(); startStrike(S.strikeId, S.tier, 1); };
@@ -4427,7 +4544,7 @@ function openStrikeChest(forced) {
     rar.push(r);
     const it = rollStrikeItem(r, P, S.tier);
     if (it.rarity === 3 && (collection[it.exoticPerk] || inventory.some(o => o.exoticPerk === it.exoticPerk))) {    // duplicate exotic: no item, +4 shards
-      addMats(0, 4, 0); toast('Duplicate exotic \u2192 +4 Shards', '#c58cff'); rows.push({ dup: true, it }); continue;
+      addMats(0, 4, 0); toast('Duplicate exotic \u2192 +4 ' + NAMES.cores, '#c58cff'); rows.push({ dup: true, it }); continue;
     }
     const cur = getItem(equip[it.slot]), before = cur ? cur.power : null;
     if (addItem(it) && !equip[it.slot]) equipItem(it);
@@ -4561,7 +4678,7 @@ function updateStrikeHud() {
     const zn = S.zone; if (zn) { title = (S.stageState === 'active' ? (S.zoneCount > 1 ? 'RELAY ' + S.zoneIdx + '/2' : 'HOLD THE RELAY') : def.stageNames[S.stage - 1]); pct = zn.p; st = S.stageState === 'active' ? zn.status : ''; }
     else st = S.stageState === 'intro' ? 'GET READY' : '';
     if (S.stageState === 'active') { const left = S.limit - (gt - S.activeT0); tm = fmtTime(left); red = left < 30; }
-  } else { title = 'DEFEAT WARLORD KRAL'; pct = 0; st = S.stageState === 'intro' ? 'GET READY' : ''; }
+  } else { title = 'DEFEAT ' + NAMES.bossFull; pct = 0; st = S.stageState === 'intro' ? 'GET READY' : ''; }
   setText(elOT, title); setW(elOF, pct); setText(elOTm, tm); elOTm.className = red ? 'red' : ''; elOTm.style.color = red ? '#ff5a4a' : ''; setText(elOS, st);
   const pips = '\u25CF'.repeat(Math.max(0, S.revives)) + '\u25CB'.repeat(Math.max(0, S.maxRevives - S.revives)); setText(elRev, pips);
   elObj.style.display = (S.stage === 4 && S.stageState !== 'results' && S.stageState !== 'complete') ? 'block' : 'block';
@@ -4583,13 +4700,23 @@ let msConfirm = false, msFromSettings = false;
 const msOpen = () => $('ms-overlay').style.display === 'flex';
 const anyModal = () => msOpen() || $('fail-overlay').style.display === 'flex';
 function closeMissionSelect() { $('ms-overlay').style.display = 'none'; msConfirm = false; }
+// v9: Mission Select opens focused on the mode the player used last (prog.lastMode): the Strike card (or RESUME) after a strike, the Patrol card after patrol.
+function msPreferredBtn() {
+  const id = prog.lastMode === 'strike' ? (prog.active && $('ms-resume-go') ? 'ms-resume-go' : 'ms-launch') : 'ms-patrol-go';
+  return $(id) || $('ms-launch') || $('ms-patrol-go');
+}
+function msFocusLast() {
+  const b = msPreferredBtn(); if (!b) return; const box = $('ms-cards'), c = b.closest('.mc');
+  if (c) box.scrollLeft = Math.max(0, box.scrollLeft + c.getBoundingClientRect().left - box.getBoundingClientRect().left - (box.clientWidth - c.offsetWidth) / 2);
+  try { b.focus({ preventScroll: true }); } catch (e) { try { b.focus(); } catch (_) {} }
+}
 function openMissionSelect() {
   if (inStrike() && STRIKE.stageState !== 'over') return;
   paused = true; fireHeld = false; mouseHeld = false; fireTouches.clear(); streams.clear(); fireBtn.classList.remove('down');
   $('pause-overlay').style.display = 'none'; $('inventory-overlay').style.display = 'none';
   $('ms-overlay').style.display = 'flex'; msConfirm = false;
   if (document.exitPointerLock) document.exitPointerLock();
-  renderMissionSelect();
+  renderMissionSelect(); msFocusLast();
 }
 function renderMissionSelect() {
   const box = $('ms-cards'), keepScroll = box.scrollLeft; box.innerHTML = '';
@@ -4615,12 +4742,12 @@ function renderMissionSelect() {
   }
   {
     const c = card('ms-card-patrol', ''), n = held ? (held.inter ? held.inter.w : held.wave) : wave;
-    c.innerHTML = '<h3>PATROL \u2014 ENDLESS</h3><div class="mtag">Test / casual</div><div>Endless waves, chest and shop between waves.</div><div>Best wave: <b>' + bestWave + '</b></div><div class="mul">Glimmer and Shard rewards are reduced to 25%.</div><div class="sp"></div>';
+    c.innerHTML = '<h3>PATROL \u2014 ENDLESS</h3><div class="mtag">Test / casual</div><div>Endless waves, chest and shop between waves.</div><div>Best wave: <b>' + bestWave + '</b></div><div class="mul">' + NAMES.brass + ' and ' + NAMES.core + ' rewards are reduced to 25%.</div><div class="sp"></div>';
     const b = document.createElement('button'); b.className = 'go'; b.id = 'ms-patrol-go'; b.type = 'button'; b.textContent = patrolLive() ? 'RETURN TO WAVE ' + n : 'CONTINUE WAVE ' + n;
     b.onclick = () => { if (patrolLive()) { closeMissionSelect(); paused = false; } else { closeMissionSelect(); resumePatrol(); } };
     c.appendChild(b);
   }
-  for (const [id, t, sub] of [['ms-card-soon1', 'PILLAR OF FIRE', 'Strike'], ['ms-card-soon2', 'WEEKLY FEATURED', 'Rotating challenge']]) {
+  for (const [id, t, sub] of [['ms-card-soon1', 'SLAGSTAIR', 'Strike'], ['ms-card-soon2', 'SPOTLIGHT STRIKE', 'Rotating challenge']]) {
     const c = card(id, 'off'); c.innerHTML = '<h3>' + t + '</h3><div class="mtag">' + sub + '</div><div>Coming soon</div><div class="sp"></div>';
   }
   box.scrollLeft = keepScroll;
@@ -4670,7 +4797,7 @@ if (/[?&](debug|qa)=1/.test(location.search)) {
 // =====================================================================
 //  CONTROLLER SUPPORT (Gamepad API, standard mapping) - Xbox / PlayStation / generic Bluetooth pads.
 //  gpTick(dt) is called from update() while playing and from frame() while paused/in menus.
-//  Gameplay (Destiny-style): LS move (L3 sprint) | RS look | RT fire | LT ADS-lite | A jump | X interact (hold) | Y swap (hold = power)
+//  Gameplay (looter-shooter style): LS move (L3 sprint) | RS look | RT fire | LT ADS-lite | A jump | X interact (hold) | Y swap (hold = power)
 //                            LB grenade | LB+RB super | Start pause | Back inventory | D-pad: opens/navigates panels
 //  Menus: D-pad / left stick = move focus, A = press, B = back, right stick = scroll, left/right on a slider = adjust.
 // =====================================================================
@@ -4753,7 +4880,7 @@ function gpSetFocus(el) {
 function gpMoveFocus(root, dir) {
   const cs = gpCands(root); if (!cs.length) return;
   if (!gp.focus || !cs.includes(gp.focus)) {
-    const pref = root.id === 'ms-overlay' ? cs.find(c => c.id === 'ms-launch') : null;
+    const pref = root.id === 'ms-overlay' ? cs.find(c => c === msPreferredBtn()) : null;
     gpSetFocus(pref || cs.slice().sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return (ra.top * 3 + ra.left) - (rb.top * 3 + rb.left); })[0]); return;
   }
   const r0 = gp.focus.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
@@ -4899,10 +5026,10 @@ function statRows(it) {
     ['Rate (RPM)', rpm(it), rpm(it)], ['Range', it.range + 'm', it.range], ['Stability', it.stab, it.stab],
     ['Power', fmtN(it.power), it.power]
   ].concat(it.maxAmmo ? [['Ammo', Math.floor(it.ammo) + '/' + it.maxAmmo, it.maxAmmo]] : []);
-  return [['Resilience', fmtN(it.stats.res), it.stats.res], ['Recovery', fmtN(it.stats.rec), it.stats.rec], ['Mobility', fmtN(it.stats.mob), it.stats.mob],
+  return [[STAT_NAMES.res, fmtN(it.stats.res), it.stats.res], [STAT_NAMES.rec, fmtN(it.stats.rec), it.stats.rec], [STAT_NAMES.mob, fmtN(it.stats.mob), it.stats.mob],
     ['Total', fmtN(armorTotal(it)), armorTotal(it)], ['Power', fmtN(it.power), it.power]];
 }
-const INV_CHIPS = [['weapons', 'Weapons'], ['armor', 'Armor'], ['kinetic', 'Kinetic'], ['energy', 'Energy'], ['power', 'Power'], ['helmet', 'Helmet'], ['arms', 'Arms'], ['chest', 'Chest'], ['legs', 'Legs'], ['classitem', 'Class'], ['exotics', 'Exotics']];
+const INV_CHIPS = [['weapons', 'Weapons'], ['armor', 'Armor'], ['kinetic', SLOT_LABEL.kinetic], ['energy', SLOT_LABEL.energy], ['power', SLOT_LABEL.power], ['helmet', 'Helmet'], ['arms', 'Arms'], ['chest', 'Chest'], ['legs', 'Legs'], ['classitem', SLOT_LABEL.classitem], ['exotics', 'Exotics']];
 const invSlots = f => f === 'weapons' ? WEAPON_SLOTS : f === 'armor' ? ARMOR_SLOTS : f === 'exotics' ? [] : [f];
 // sort: equipped first, then power (high->low), then rarity (exotic > legendary > rare > common)
 const invSort = (a, b) => (isEquipped(b) - isEquipped(a)) || (b.power - a.power) || (b.rarity - a.rarity);
@@ -4919,7 +5046,7 @@ function doDismantle(it) {
   if (it.locked) { toast(it.name + ' is locked \u2014 unlock it to dismantle', '#ffd45a'); return; }
   if (!confirmDismantle(it)) { renderInventory(); return; }
   const v = dismantleValue(it);
-  if (dismantle(it)) { if (selId === it.id) selId = null; toast('Dismantled ' + it.name + '  +' + v.g + ' Glimmer' + (v.s ? ' +' + v.s + ' Shard' + (v.s > 1 ? 's' : '') : '') + (v.c ? ' +' + v.c + ' Cipher' : ''), '#8fe3ff'); playTone(250, 0.1, 'triangle', 0.06); }
+  if (dismantle(it)) { if (selId === it.id) selId = null; toast('Dismantled ' + it.name + '  +' + v.g + ' ' + NAMES.brass + (v.s ? ' +' + v.s + ' ' + NAMES.core + (v.s > 1 ? 's' : '') : '') + (v.c ? ' +' + v.c + ' ' + NAMES.seal : ''), '#8fe3ff'); playTone(250, 0.1, 'triangle', 0.06); }
   renderInventory();
 }
 let bulkConfirm = null;
@@ -4930,7 +5057,7 @@ function doBulk(maxRarity) {
   bulkConfirm = null; let g = 0, sh = 0;
   for (const it of list) { const v = dismantleValue(it); if (dismantle(it, true)) { g += v.g; sh += v.s; } }
   addXP(list.length * 3);
-  toast('Dismantled ' + list.length + ' items  +' + g + ' Glimmer' + (sh ? ' +' + sh + ' Shards' : ''), '#8fe3ff');
+  toast('Dismantled ' + list.length + ' items  +' + g + ' ' + NAMES.brass + (sh ? ' +' + sh + ' ' + NAMES.cores : ''), '#8fe3ff');
   if (!getItem(selId)) selId = null;
   renderInventory();
 }
@@ -5019,7 +5146,7 @@ function renderCollection(list) {
     }
   }
 }
-// ---- exotic level panel: level, XP bar, next-level changes, plus Upgrade / Empower buttons
+// ---- exotic level panel: level, XP bar, next-level changes, plus Upgrade / Reburnish buttons
 function exoPanelHTML(it) {
   const lv = exoLv(it), max = exoIsMax(it), S = EXO_SCALE[it.exoticPerk], cur = exoParamsAt(it.exoticPerk, lv), nxt = max ? null : exoParamsAt(it.exoticPerk, lv + 1);
   const need = exoXpNext(it), prev = EXO_XP_CUM[lv - 1], xp = it.exoXp || 0;
@@ -5030,9 +5157,9 @@ function exoPanelHTML(it) {
     const [label, unit, mul] = S.meta[k], f = v => nf1(v * mul) + (unit === '%' || unit === '% max' || unit === '% max HP' ? '%' : unit ? ' ' + unit : '');
     h += '<div class="row small"><span>' + label + '</span><span>' + f(cur[k]) + (nxt && nxt[k] !== cur[k] ? ' <span class="up">\u2192 ' + f(nxt[k]) + '</span>' : '') + '</span></div>';
   }
-  if (!max) { const c = exoUpgradeCost(it); h += '<div class="small" style="color:#9ab;margin-top:3px">Next level: needs ' + (exoXpReady(it) ? '<span class="up">XP ready</span>' : fmtN(need - xp) + ' more XP') + ' + ' + fmtN(c.g) + '\u25C6 ' + c.s + '\u2756' + (c.c ? ' ' + c.c + ' Cipher' : '') + (lv + 1 === EXO_MAXLV ? ' &bull; unlocks the CATALYST' : '') + '</div>'; }
+  if (!max) { const c = exoUpgradeCost(it); h += '<div class="small" style="color:#9ab;margin-top:3px">Next level: needs ' + (exoXpReady(it) ? '<span class="up">XP ready</span>' : fmtN(need - xp) + ' more XP') + ' + ' + fmtN(c.g) + '\u25C6 ' + c.s + '\u2756' + (c.c ? ' ' + c.c + ' ' + NAMES.seal : '') + (lv + 1 === EXO_MAXLV ? ' &bull; unlocks the CATALYST' : '') + '</div>'; }
   const ic = infuseCost(it);
-  h += '<div class="small" style="color:#9ab;margin-top:3px">Power ' + fmtN(it.power) + (ic ? ' &bull; Empower to ' + fmtN(it.power + ic.gap) + ': ' + fmtN(ic.g) + '\u25C6 ' + ic.s + '\u2756' : ' &bull; at your highest power') + '</div></div>';
+  h += '<div class="small" style="color:#9ab;margin-top:3px">Power ' + fmtN(it.power) + (ic ? ' &bull; ' + NAMES.empower + ' to ' + fmtN(it.power + ic.gap) + ': ' + fmtN(ic.g) + '\u25C6 ' + ic.s + '\u2756' : ' &bull; at your highest power') + '</div></div>';
   return h;
 }
 function addExoButtons(box, it) {
@@ -5042,15 +5169,15 @@ function addExoButtons(box, it) {
     ub.onclick = () => { const r = upgradeExotic(it); if (r.ok) { toast(it.name + ' is now Level ' + r.lv + (r.lv >= EXO_MAXLV ? ' \u2013 CATALYST unlocked!' : '!'), '#ffd45a'); playTone(700, 0.25, 'triangle', 0.09); } else toast(r.why === 'mats' ? 'Not enough materials' : 'Not enough XP yet', '#f66'); renderInventory(); };
     box.appendChild(ub);
   }
-  const ic = infuseCost(it), eb = ce('button', 'upg', ic ? 'Empower \u2192 ' + fmtN(it.power + ic.gap) + ' \u25C6' + fmtN(ic.g) + ' \u2756' + ic.s : 'Empower (at max)'); eb.disabled = !ic || mats.glimmer < ic.g || mats.shards < ic.s;
-  eb.onclick = () => { const r = infuseExotic(it); if (r.ok) { toast(it.name + ' empowered: ' + fmtN(r.from) + ' \u2192 ' + fmtN(r.to), '#7fe39a'); playTone(560, 0.2, 'triangle', 0.08); } else { const c = r.cost; toast(r.why === 'maxed' ? it.name + ' is already at your power (' + fmtN(it.power) + '). Gear up first.' : r.why === 'notexotic' ? 'Only exotics can be empowered.' : c ? 'Empower needs ' + fmtN(c.g) + ' Glimmer + ' + fmtN(c.s) + ' Shards (you have ' + fmtN(mats.glimmer) + ' / ' + fmtN(mats.shards) + ')' : 'Cannot empower right now', '#f66'); } renderInventory(); };
+  const ic = infuseCost(it), eb = ce('button', 'upg', ic ? NAMES.empower + ' \u2192 ' + fmtN(it.power + ic.gap) + ' \u25C6' + fmtN(ic.g) + ' \u2756' + ic.s : NAMES.empower + ' (at max)'); eb.disabled = !ic || mats.glimmer < ic.g || mats.shards < ic.s;
+  eb.onclick = () => { const r = infuseExotic(it); if (r.ok) { toast(it.name + ' ' + NAMES.empowered + ': ' + fmtN(r.from) + ' \u2192 ' + fmtN(r.to), '#7fe39a'); playTone(560, 0.2, 'triangle', 0.08); } else { const c = r.cost; toast(r.why === 'maxed' ? it.name + ' is already at your power (' + fmtN(it.power) + '). Gear up first.' : r.why === 'notexotic' ? 'Only exotics can be ' + NAMES.empowered + '.' : c ? NAMES.empower + ' needs ' + fmtN(c.g) + ' ' + NAMES.brass + ' + ' + fmtN(c.s) + ' ' + NAMES.cores + ' (you have ' + fmtN(mats.glimmer) + ' / ' + fmtN(mats.shards) + ')' : 'Cannot ' + NAMES.empower.toLowerCase() + ' right now', '#f66'); } renderInventory(); };
   box.appendChild(eb);
 }
 $('equip-best').onclick = () => { equipBest(); renderInventory(); };
 function renderDetail() {
   const box = $('inv-detail'); box.innerHTML = '';
   const it = getItem(selId);
-  if (!it) { box.innerHTML = '<small style="color:#789">Select an item to see stats, perks and a comparison with what you have equipped. Equipped items sit at the top of each section; the rest are sorted by Power, then rarity.<br><br>Dismantling returns Glimmer and Legendary Shards, which you spend at the shop between waves.</small>'; return; }
+  if (!it) { box.innerHTML = '<small style="color:#789">Select an item to see stats, perks and a comparison with what you have equipped. Equipped items sit at the top of each section; the rest are sorted by Power, then rarity.<br><br>Dismantling returns ' + NAMES.brass + ' and ' + NAMES.cores + ', which you spend at the shop between waves.</small>'; return; }
   const cur = getItem(equip[it.slot]);
   let h = '<h3 style="color:' + rcol(it) + '">' + it.name + '</h3><div style="color:#9ab;margin-bottom:4px">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] +
     (it.kind === 'weapon' ? ' ' + WEAPON_BASES[it.base].name + ' &bull; <span style="color:' + hex(ELEMENTS[it.element].color) + '">' + ELEMENTS[it.element].name + '</span>' : '') + '</div>';
@@ -5202,6 +5329,7 @@ function updateHUD() {
   setText(elG, grenadeCooldown <= 0 ? 'Grenade: Ready' : 'Grenade: ' + Math.ceil(grenadeCooldown) + 's');
   const mh = matsHTML(); if (elM._h !== mh) { elM.innerHTML = mh; elM._h = mh; }
   if (matsChangedAt && elM._m !== matsChangedAt) { elM._m = matsChangedAt; elM.classList.remove('flash'); void elM.offsetWidth; elM.classList.add('flash'); }
+  { const nowMs = performance.now(); if (!updateHUD._fit || nowMs - updateHUD._fit > 350) { updateHUD._fit = nowMs; fitHud(); } }
   const sb = $('super-btn'), want = player.super >= 100 ? 'flex' : 'none'; if (sb._d !== want) { sb.style.display = want; sb._d = want; }
   const left = enemies.filter(e => !e.userData.def.free).length + spawnQueue.length + bossQueue.length;
   setText(elL, 'Lv ' + player.level + ' | XP ' + Math.floor(player.xp) + '/' + player.xpToNext + '\n' + (inStrike() ? 'Stage ' + STRIKE.stage + '/4 \u00b7 ' + STRIKE_DEFS[STRIKE.strikeId].name : 'Wave ' + wave + (waveState === 'active' ? ' | Enemies ' + left : waveState === 'inter' ? ' | Intermission' : ' | Get ready')));
@@ -5274,13 +5402,17 @@ function applyLayout() {
     const opp = settings.abilSide === 'opp' && LAYOUT_OPP[id];
     const L = opp ? LAYOUT_OPP[id] : LAYOUT[id], el = $(id), d = Math.max(44, Math.round(L.d * k * bs));
     el.style.width = el.style.height = d + 'px';
-    if (L.center) { el.style.left = 'calc(50% - ' + Math.round(d / 2) + 'px)'; el.style.right = 'auto'; }
+    // v9: above 100 % the whole cluster zooms (positions x bs as well as sizes) so enlarged buttons keep their spacing (no hit areas on top of each other),
+    // then every centre is clamped so the disc stays fully on-screen
+    const pm = Math.max(1, bs), mg = 4, half = d / 2;
+    const cx = clamp(L.x * k * pm, half + mg, W - half - mg), cy = clamp(L.y * k * (id === 'jump-btn' ? 1 : pm), half + mg, H - half - mg);   // JUMP is the top of the cluster: keep its height so it never climbs into the XP / wave text
+    if (L.center) { el.style.left = 'calc(50% - ' + Math.round(half) + 'px)'; el.style.right = 'auto'; }
     else {
       const sd = opp ? other : side, od = opp ? side : other;
-      el.style[sd] = 'calc(' + Math.round(L.x * k - d / 2) + 'px + env(safe-area-inset-' + sd + ', 0px))';
+      el.style[sd] = 'calc(' + Math.round(cx - half) + 'px + env(safe-area-inset-' + sd + ', 0px))';
       el.style[od] = 'auto';
     }
-    el.style.bottom = 'calc(' + Math.round(L.y * k - d / 2) + 'px + env(safe-area-inset-bottom, 0px))';
+    el.style.bottom = 'calc(' + Math.round(cy - half) + 'px + env(safe-area-inset-bottom, 0px))';
   }
   // zones: thumb side = look, off-hand side = joystick
   lookZone.style.left = settings.lefty ? '0' : 'auto'; lookZone.style.right = settings.lefty ? 'auto' : '0';
@@ -5289,6 +5421,48 @@ function applyLayout() {
   joyBase.style.width = joyBase.style.height = (joyRadius * 2) + 'px';
   joyBaseX = settings.lefty ? W - JOY.x * k : JOY.x * k; joyBaseY = H - JOY.y * k;
   if (!joyActive) placeJoyBase(joyBaseX, joyBaseY, false);
+  $('hud-shade').classList.toggle('r', !!settings.lefty);
+  measureHudObstacles(); fitHud();
+}
+// ---- v9: keep the HUD column clear of the thumb areas. The #ui column (power / bars / weapon / grenade / perks) is scaled down just enough to end above the
+// left stick's idle base and any button it overlaps horizontally (the currencies live in #mats, top-left, outside this column). Re-run on layout and ~3x/s (perk chips come and go).
+let hudObstacles = [];
+function measureHudObstacles() {
+  hudObstacles = [];
+  // left-handed: the JUMP button mirrors to the top-left, right where the pause button / HUD column live -> slide those to the right of it (--hudx)
+  document.documentElement.style.setProperty('--hudx', '0px');
+  if (settings.lefty) { const j = $('jump-btn').getBoundingClientRect(); if (j.width && j.left < 100) document.documentElement.style.setProperty('--hudx', Math.max(0, Math.round(j.right + 8 - 12)) + 'px'); }
+  for (const id of ['shoot-btn', 'jump-btn', 'grenade-btn', 'super-btn', 'swap-btn']) {
+    const el = $(id), prev = el.style.display; if (prev === 'none') el.style.display = 'flex';
+    const r = el.getBoundingClientRect(); if (prev === 'none') el.style.display = prev;
+    if (r.width) hudObstacles.push({ l: r.left, t: r.top, r: r.right, b: r.bottom });
+  }
+  hudObstacles.push({ l: joyBaseX - joyRadius - 8, t: joyBaseY - joyRadius - 8, r: joyBaseX + joyRadius + 8, b: joyBaseY + joyRadius + 8 });   // idle stick base (+ knob travel margin)
+}
+function fitLevelUi() {   // top-right XP / wave text: shrink just enough to clear the JUMP button (big button sizes on short screens)
+  const el = $('level-ui'); if (!el || !hudObstacles.length) return;
+  const r = el.getBoundingClientRect(), s0 = el._s || 1, w = el.offsetWidth * s0, h = el.offsetHeight, top = r.top; if (!h) return;
+  let limit = window.innerHeight; for (const o of hudObstacles) if (o.l < r.right && o.r > r.right - w && o.t > top) limit = Math.min(limit, o.t - 4);
+  const s = clamp((limit - top) / h, 0.6, 1);
+  if (Math.abs(s - s0) > 0.01) { el.style.transformOrigin = 'right top'; el.style.transform = s < 0.995 ? 'scale(' + s.toFixed(3) + ')' : ''; el._s = s; }
+}
+function fitMinimap() {   // the intermission bar (z-index above the minimap) must not cover the map's top-left corner when it wraps taller on narrow screens
+  const mm = $('minimap'), ib = $('inter-bar'); if (!mm || !ib) return;
+  const cur = parseFloat(document.documentElement.style.getPropertyValue('--mmy')) || 0; let dy = 0;
+  if (getComputedStyle(ib).display !== 'none') {
+    const b = ib.getBoundingClientRect(), m = mm.getBoundingClientRect(), nat = m.top - cur;
+    if (b.right > m.left - 2 && b.left < m.right + 2 && b.bottom + 4 > nat) dy = Math.ceil(b.bottom + 4 - nat);
+  }
+  if (dy !== cur) document.documentElement.style.setProperty('--mmy', dy + 'px');
+}
+function fitHud() {
+  fitMinimap(); fitLevelUi();
+  const ui = $('ui'); if (!ui || !hudObstacles.length) return;
+  const r = ui.getBoundingClientRect(), top = r.top, w = ui.offsetWidth, h = ui.offsetHeight, left = r.left; if (!h) return;
+  let limit = window.innerHeight;
+  for (const o of hudObstacles) if (o.r > left && o.l < left + w * (ui._s || 1) && o.t > top) limit = Math.min(limit, o.t - 6);
+  const s = clamp((limit - top) / h, 0.5, 1);
+  if (Math.abs(s - (ui._s || 1)) > 0.01) { ui.style.transformOrigin = 'left top'; ui.style.transform = s < 0.995 ? 'scale(' + s.toFixed(3) + ')' : ''; ui._s = s; }
 }
 function placeJoyBase(x, y, on) {
   joyBase.style.left = x + 'px'; joyBase.style.top = y + 'px'; joyBase.classList.toggle('on', on);
@@ -5362,7 +5536,7 @@ const endLook = e => {
   for (const t of e.changedTouches) {
     streams.delete(t.identifier);
     const tp = taps.get(t.identifier); taps.delete(t.identifier);
-    if (tp && e.type === 'touchend' && e.timeStamp - tp.t < 300 && Math.hypot(t.clientX - tp.x, t.clientY - tp.y) < 14) tryInteractRay(t.clientX / window.innerWidth * 2 - 1, -(t.clientY / window.innerHeight * 2 - 1));
+    if (tp && e.type === 'touchend' && e.timeStamp - tp.t < 300 && Math.hypot(t.clientX - tp.x, t.clientY - tp.y) < 14) tryInteractRay(t.clientX / window.innerWidth * 2 - 1, -(t.clientY / window.innerHeight * 2 - 1), true);
   }
 };
 lookZone.addEventListener('touchend', endLook, { passive: false });
@@ -5380,43 +5554,76 @@ function bindBtn(id, fn) {
   el.addEventListener('click', () => { if (performance.now() - lastTouchAt > 800) fn(); });
 }
 const BTN_MIN_MS = 60, BTN_MAX_MOVE = 12, SUPER_HOLD_MS = 350, NADE_HOLD_MS = 200, DBL_TAP_MS = 450;
+// v9 SUPER FIX. v8 only fired the super on RELEASE, and any drift >= 12 px at ANY moment during the 0.35 s+ hold flagged the press 'bad' for good, so a
+// normal thumb press (the pad rolls 15-30 px on a 58 px button) was silently thrown away. Now a HOLD button fires the instant the hold completes (while the
+// finger is still down), drift is judged against a roomy slop (still cancelled by a deliberate drag-off), and a lost touchend can no longer jam the button.
+const HOLD_SLOP = 44, BTN_STALE_MS = 4000, HOLD_GRACE_MS = 40;
 const btnStats = { fired: {}, rejected: {} };   // QA counters
+const guardedReset = [];                         // per-button 'forget the current touch' hooks (blur / visibility / overlay changes)
 function bindGuarded(id, fn, holdMsFn) {
   const el = $(id); let ring = el.querySelector('.ring'); if (!ring) { ring = document.createElement('i'); ring.className = 'ring'; el.appendChild(ring); }
   let cur = null, raf = 0, lastTap = 0;
   const holdMs = () => holdMsFn ? holdMsFn() : 0;
+  const slop = () => holdMs() ? HOLD_SLOP : BTN_MAX_MOVE;   // hold buttons tolerate thumb roll; tap buttons stay strict (a swipe must not throw a grenade / swap)
   const stop = () => { cancelAnimationFrame(raf); raf = 0; el.classList.remove('down', 'holding', 'ready'); ring.style.setProperty('--p', '0deg'); };
+  const count = () => { btnStats.fired[id] = (btnStats.fired[id] || 0) + 1; };
   const tickRing = () => {
-    if (!cur) return; const need = holdMs();
-    if (need) { const f = Math.min(1, (performance.now() - cur.t0) / need); ring.style.setProperty('--p', Math.round(f * 360) + 'deg'); el.classList.toggle('holding', true); el.classList.toggle('ready', f >= 1); }
+    if (!cur || cur.bad) return; const need = holdMs();   // a rejected touch must not re-add holding / ready (the ring used to stay green after the press was already lost)
+    if (need) {
+      const dt = performance.now() - cur.t0, f = Math.min(1, dt / need);
+      ring.style.setProperty('--p', Math.round(f * 360) + 'deg'); el.classList.toggle('holding', true); el.classList.toggle('ready', f >= 1);
+      if (f >= 1 && !cur.bad && !cur.fired) { cur.fired = true; count(); fn(); stop(); return; }   // hold complete: fire NOW, do not wait for the finger to lift (position-independent from here on)
+    }
     raf = requestAnimationFrame(tickRing);
   };
+  let hintAt = 0, nudgeT = 0;
+  const label = id === 'super-btn' ? 'SUPER' : id === 'grenade-btn' ? 'grenade' : '';
+  const hint = kind => {   // v9: no miss is silent. Every rejected press pulses the ring; hold buttons also say why (throttled 1.2 s)
+    btnStats.hints = (btnStats.hints || 0) + 1; el.classList.add('nudge'); clearTimeout(nudgeT); nudgeT = setTimeout(() => el.classList.remove('nudge'), 520);
+    if (!holdMs() || !label) return;
+    const now = performance.now(); if (now - hintAt < 1200) return; hintAt = now;
+    toast(kind === 'drift' ? label + ' cancelled: finger slid off the button' : kind === 'cancel' ? label + ' interrupted: hold again' : (id === 'super-btn' ? 'HOLD to use SUPER' : 'HOLD to throw'), '#ffe066');
+  };
   const reject = why => { btnStats.rejected[id] = (btnStats.rejected[id] || 0) + 1; };
+  const forget = () => { cur = null; stop(); };
+  guardedReset.push(forget);
+  const hasTouch = (e, tid) => { for (const t of e.touches) if (t.identifier === tid) return true; return false; };
   el.addEventListener('touchstart', e => {
-    e.preventDefault(); if (cur) return;
-    const t = e.changedTouches[0]; cur = { id: t.identifier, x: t.clientX, y: t.clientY, t0: performance.now(), bad: false };
+    e.preventDefault();
+    if (cur) {   // a previous touch whose touchend / touchcancel never arrived must not jam the button forever
+      if (performance.now() - cur.t0 > BTN_STALE_MS || !hasTouch(e, cur.id) || (cur.id === e.changedTouches[0].identifier && cur.fired)) forget(); else return;
+    }
+    const t = e.changedTouches[0]; cur = { id: t.identifier, x: t.clientX, y: t.clientY, t0: performance.now(), bad: false, fired: false };
     el.classList.add('down'); if (holdMs()) tickRing();
   }, { passive: false });
   el.addEventListener('touchmove', e => {
-    if (!cur) return; for (const t of e.changedTouches) if (t.identifier === cur.id && Math.hypot(t.clientX - cur.x, t.clientY - cur.y) >= BTN_MAX_MOVE) { cur.bad = true; el.classList.remove('down', 'holding', 'ready'); }
+    if (!cur) return;
+    for (const t of e.changedTouches) if (t.identifier === cur.id && !cur.fired) {
+      const far = Math.hypot(t.clientX - cur.x, t.clientY - cur.y) >= slop();
+      if (far && !cur.bad) { cur.bad = true; el.classList.remove('down', 'holding', 'ready'); ring.style.setProperty('--p', '0deg'); }
+      else if (!far && cur.bad && holdMs()) { cur.bad = false; el.classList.add('down'); if (holdMs()) tickRing(); }   // the thumb came back before the ring completed: the press is valid again
+    }
     e.preventDefault();
   }, { passive: false });
   el.addEventListener('touchend', e => {
     e.preventDefault(); if (!cur) return;
-    let mine = false; for (const t of e.changedTouches) if (t.identifier === cur.id) { mine = true; if (Math.hypot(t.clientX - cur.x, t.clientY - cur.y) >= BTN_MAX_MOVE) cur.bad = true; }
+    let mine = false; for (const t of e.changedTouches) if (t.identifier === cur.id) { mine = true; if (!cur.fired) cur.bad = (!holdMs() && cur.bad) || Math.hypot(t.clientX - cur.x, t.clientY - cur.y) >= slop(); /* tap buttons (swap / pause): a slide stays rejected even if the thumb ends up back on the button */ }
     if (!mine) return;
-    const dt = performance.now() - cur.t0, need = holdMs(), bad = cur.bad; cur = null; stop();
-    if (bad || dt < BTN_MIN_MS) { reject(); return; }
-    if (need && dt < need) {                                         // not held long enough: a double-tap (super) is the alternative
+    const dt = performance.now() - cur.t0, need = holdMs(), bad = cur.bad, fired = cur.fired; cur = null; stop();
+    if (fired) return;                                              // already fired when the hold completed
+    if (bad || dt < BTN_MIN_MS) { reject(); hint(bad ? 'drift' : 'short'); return; }
+    if (need && dt < need - HOLD_GRACE_MS) {                         // not held long enough: a double-tap (super) is the alternative
       const now = performance.now();
-      if (id === 'super-btn' && now - lastTap < DBL_TAP_MS) { lastTap = 0; btnStats.fired[id] = (btnStats.fired[id] || 0) + 1; fn(); return; }
-      lastTap = now; reject(); return;
+      if (id === 'super-btn' && now - lastTap < DBL_TAP_MS) { lastTap = 0; count(); fn(); return; }
+      lastTap = now; reject(); hint('short'); return;
     }
-    lastTap = 0; btnStats.fired[id] = (btnStats.fired[id] || 0) + 1; fn();
+    lastTap = 0; count(); fn();
   }, { passive: false });
-  el.addEventListener('touchcancel', () => { cur = null; stop(); });
+  el.addEventListener('touchcancel', e => { if (cur) { let mine = false; for (const t of e.changedTouches) if (t.identifier === cur.id) mine = true; if (!mine && e.changedTouches.length) return; } const was = cur && !cur.fired; forget(); if (was) hint('cancel'); });   // system gesture / palm rejection: say so instead of a silent miss
   el.addEventListener('click', () => { if (performance.now() - lastTouchAt > 800) fn(); });   // mouse / keyboard users
 }
+window.addEventListener('blur', () => guardedReset.forEach(f => f()));
+document.addEventListener('visibilitychange', () => { if (document.hidden) guardedReset.forEach(f => f()); });
 document.addEventListener('touchend', () => { lastTouchAt = performance.now(); }, { capture: true, passive: true });
 bindBtn('jump-btn', doJump);
 bindGuarded('grenade-btn', throwGrenade, () => settings.nadeAct === 'hold' ? NADE_HOLD_MS : 0);
@@ -5483,7 +5690,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => keys[e.code] = false);
 const finePointer = window.matchMedia && matchMedia('(pointer:fine)').matches;
 document.addEventListener('click', () => {
-  if (finePointer && document.pointerLockElement) tryInteractRay(0, 0);
+  if (finePointer && document.pointerLockElement) tryInteractRay(0, 0, true);
   if (finePointer && !document.pointerLockElement && !paused && renderer.domElement.requestPointerLock) {
     try { const p = renderer.domElement.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
   }
@@ -5815,11 +6022,11 @@ if (/[?&]qa=1(&|#|$)/.test(location.search)) (function () {
     if (n === null || n === undefined) { Math.random = realRandom; seed = null; return null; }
     seed = num(n, 'seed') >>> 0; Math.random = mulberry32(seed); return seed;
   }
-  const ALIAS = { kral: 'boss', warlord: 'boss', marksman: 'sniper', voidorb: 'orb', aegis: 'beacon' };
+  const ALIAS = { kral: 'boss', warlord: 'boss', braskk: 'boss', chieftain: 'boss', marksman: 'sniper', voidorb: 'orb', gloomorb: 'orb', aegis: 'beacon', ward: 'beacon', wardbeacon: 'beacon', fusebug: 'shriek', scrapper: 'dreg', slinger: 'vandal', bannerjack: 'captain', plateback: 'knight' };   // old (pre-v9) aliases kept
   function spawn(type, pos, opts) {
     opts = Object.assign({ instant: true }, opts || {});
     const t = ALIAS[String(type).toLowerCase()] || String(type).toLowerCase();
-    if (!ENEMY_DEFS[t]) throw new Error("__QA.spawnEnemy: unknown type '" + type + "'. Valid: " + Object.keys(ENEMY_DEFS).join(', ') + ' (aliases: ' + Object.keys(ALIAS).join(', ') + '). There is no separate "charger" enemy - Kral\'s Charge is a boss ability.');
+    if (!ENEMY_DEFS[t]) throw new Error("__QA.spawnEnemy: unknown type '" + type + "'. Valid: " + Object.keys(ENEMY_DEFS).join(', ') + ' (aliases: ' + Object.keys(ALIAS).join(', ') + '). There is no separate "charger" enemy - the boss\'s Charge is an ability.');
     let at = null;
     if (pos && isFinite(pos.x) && isFinite(pos.z)) at = { x: +pos.x, z: +pos.z };
     else if (pos === 'ahead' || pos === undefined || pos === null) { at = { x: camera.position.x - Math.sin(yaw) * 14, z: camera.position.z - Math.cos(yaw) * 14 }; }
