@@ -66,9 +66,15 @@ button { font-family: inherit; }
 .eb .s { position: absolute; left: 0; top: 0; height: 2px; width: 100%; background: #4cf; z-index: 2; }
 #level-ui { position: absolute; top: max(58px, calc(env(safe-area-inset-top) + 50px)); right: 12px; color: #ff0; z-index: 100; pointer-events: none; font-size: 13px; font-weight: 600; text-shadow: 0 1px 2px #000; text-align: right; line-height: 1.35; }
 #fullscreen-btn { display: none; position: absolute; top: max(70px, calc(env(safe-area-inset-top) + 60px)); left: calc(70px + var(--hudx, 0px)); padding: 8px 12px; background: rgba(80,80,80,0.7); color: #fff; border: 2px solid rgba(255,255,255,0.3); border-radius: 6px; font-size: 12px; z-index: 110; font-family: inherit; }
-#settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); color: #fff; z-index: 210; flex-direction: column; padding: max(10px, env(safe-area-inset-top)) 18px 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+#settings-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); color: #fff; z-index: 210; flex-direction: column; padding: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+/* v9.1: Back lives in a sticky header (always on screen, no scrolling needed); a second Back sits at the end of the list */
+#set-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; flex: 0 0 auto; padding: max(6px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) 6px max(18px, env(safe-area-inset-left)); background: #000; border-bottom: 1px solid #334; }
+#set-top h2 { margin: 0; flex: 1; }
+#set-top button, #set-bottom button { min-height: 44px; padding: 0 26px; font-size: 15px; font-weight: 700; background: #333; color: #fff; border: 1px solid #667; border-radius: 8px; }
+#set-grid, #set-bottom { padding-left: max(18px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); }
+#set-bottom { padding-top: 10px; padding-bottom: 12px; flex: 0 0 auto; }
 #settings-overlay h2 { margin: 4px 0 6px; font-size: 18px; letter-spacing: 3px; }
-#set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; max-width: 760px; }
+#set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; max-width: 760px; flex: 0 0 auto; box-sizing: content-box; padding-top: 8px; }
 .srow { display: flex; flex-direction: column; font-size: 13px; padding: 4px 0; }
 .srow label { display: flex; justify-content: space-between; margin-bottom: 4px; color: #cde; }
 .srow input[type=range] { width: 100%; height: 28px; }
@@ -95,9 +101,14 @@ button { font-family: inherit; }
 @keyframes bannerAnim { 0% { opacity: 0; transform: translateX(-50%) scale(1.3); } 12% { opacity: 1; transform: translateX(-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 canvas { display: block; }
 /* v9 (S3): soft dark panel behind the bottom corner that holds the stick + HUD, so white HUD text keeps >= 4.5:1 contrast on bright arenas (Vex Garden). Under every HUD element, never intercepts touches. */
-#hud-shade { position: absolute; left: 0; bottom: 0; width: 44%; height: 66%; z-index: 20; pointer-events: none; background: radial-gradient(ellipse 100% 100% at 0% 100%, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.58) 40%, rgba(0,0,0,0.3) 72%, rgba(0,0,0,0) 100%); }
-#hud-shade.r { left: auto; right: 0; background: radial-gradient(ellipse 100% 100% at 100% 100%, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.58) 40%, rgba(0,0,0,0.3) 72%, rgba(0,0,0,0) 100%); }
-body.gp #hud-shade { display: none; }
+#hud-shade { display: none !important; }   /* v9.1: the S3 panel darkened the left-stick zone; removed (kept as a dead element so old references still resolve). Contrast now comes from text-shadow on the HUD text, below. */
+#ui, #mats, #status, #perkhud, #revives { text-shadow: 0 0 3px #000, 0 1px 2px #000, 0 0 6px rgba(0,0,0,0.85); }
+/* v9.1: tight per-text backing (only as wide / tall as the text itself, never a panel over the stick zone) keeps white HUD text >= 4.5:1 on bright arenas */
+#power, #weapon, #grenade, #revives, #mats, #perkhud { width: fit-content; background: rgba(0,0,0,0.62); border-radius: 4px; padding: 0 6px; box-sizing: border-box; }
+#mats { padding: 1px 6px; }
+#revives:empty, #perkhud:empty { padding: 0; background: none; }
+#ui .bar { box-shadow: 0 0 0 1px rgba(0,0,0,0.55); }
+#ui .bar > span { left: 2px; top: 0; padding: 0 4px; background: rgba(0,0,0,0.62); border-radius: 3px; text-shadow: 0 1px 1px #000; }   /* v9.1: bar label gets its own backing (white on the green / blue / yellow fill was the weakest text) */
 #orient-msg { display: none; position: fixed; inset: 0; background: #000; color: #fff; z-index: 999; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 18px; padding: 24px; }
 #hurt, #sflash { position: fixed; inset: 0; pointer-events: none; z-index: 95; opacity: 0; transition: opacity 0.25s; }
 #hurt { box-shadow: inset 0 0 90px 30px rgba(255,0,0,0.65); }
@@ -111,9 +122,10 @@ body.gp #hud-shade { display: none; }
 #toast { position: absolute; top: 36%; left: 50%; transform: translateX(-50%); z-index: 120; pointer-events: none; font-size: 14px; font-weight: 700; text-shadow: 0 1px 3px #000; color: #fff; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
 /* Inventory */
 #inventory-overlay { display: none; position: fixed; inset: 0; background: rgba(8,10,14,0.97); color: #fff; z-index: 210; flex-direction: column; padding: max(8px, env(safe-area-inset-top)) 10px 8px; font-size: 12px; }
-#inv-top { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+#inv-top { display: flex; align-items: center; gap: 4px 12px; flex: 0 0 auto; flex-wrap: wrap; }   /* v9.1: wrap so Close can never be pushed off the right edge by a long Power / currency line */
+#inv-top > button { flex: 0 0 auto; }
 #inv-top h2 { margin: 0; font-size: 16px; letter-spacing: 2px; }
-#inv-power { color: #ffd45a; font-weight: 800; font-size: 13px; flex: 1; min-width: 0; }
+#inv-power { color: #ffd45a; font-weight: 800; font-size: 13px; flex: 1 1 auto; min-width: 0; white-space: nowrap; }
 .matsline { font-weight: 800; font-size: 13px; white-space: nowrap; }
 .mg { color: #8fe3ff; } .ms { color: #c58cff; } .mcx { color: #ffd45a; }
 .pcol { font-size: 9px; letter-spacing: 1px; color: #789; border: 1px solid #345; border-radius: 3px; padding: 0 3px; margin-left: 4px; vertical-align: middle; }
@@ -300,7 +312,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
   <div class="prow" id="save-btns"></div>
 </div>
 <div id="settings-overlay">
-  <h2>SETTINGS</h2>
+  <div id="set-top"><h2>SETTINGS</h2><button id="set-close" type="button">Back</button></div>
   <div id="set-grid">
     <div class="srow"><label><span>Look sensitivity</span><b id="v-look">100%</b></label><input type="range" id="s-look" min="50" max="150" step="5"></div>
     <div class="srow"><label><span>Aim assist strength</span><b id="v-aim">60%</b></label><input type="range" id="s-aim" min="0" max="100" step="5"></div>
@@ -317,7 +329,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
     <div class="srow"><label><span>Ability buttons</span></label><div class="seg" id="g-abil"><button data-v="edge">Aim-hand edge</button><button data-v="opp">Move-hand side</button></div></div>
     <div class="srow"><label><span>Layout</span></label><div class="seg" id="g-hand"><button data-v="0">Right-handed</button><button data-v="1">Left-handed (flip)</button></div></div>
   </div>
-  <button id="set-close" class="pbtn" style="align-self:flex-start;margin:10px 0 6px;padding:10px 26px;font-size:15px;background:#333;color:#fff;border:1px solid #555;border-radius:8px">Back</button>
+  <div id="set-bottom"><button id="set-close2" type="button">Back</button></div>
 </div>
 <div id="inventory-overlay">
   <div id="inv-top"><h2>INVENTORY</h2><span id="inv-power"></span><span id="inv-mats" class="matsline"></span><button class="pbtn" id="equip-best" style="padding:7px 12px;font-size:13px;margin:0;background:#2a7a46">Equip Best</button><button class="pbtn" id="close-inv" style="padding:7px 16px;font-size:14px;margin:0">Close</button></div>
@@ -563,12 +575,12 @@ const EXOTIC_PERKS = {
   wolfpack:  { name: 'Hound Salvo',  desc: 'The rocket splits into 3 homing missiles mid-flight.', flavor: 'The pack hunts together.' },
   swarm:     { name: 'Cluster Burst',    desc: 'The grenade bursts into 5 cluster bomblets on impact.', flavor: 'Too many to count.' },
   hammer:    { name: 'Bottomless Belt',     desc: 'Kills refill 20 heavy rounds. Every 3rd kill restores 10 health.', flavor: 'It is never empty. Neither are you.' },
-  storm:     { name: 'Capacitor Coil',  desc: 'Hits build charge. At 30 charges, unleash a ' + ELEMENTS.arc.name + ' nova.', flavor: 'Every shot is a thunderhead.' },
+  storm:     { name: 'Capacitor Coil',  desc: 'Hits build charge. At 30 charges, unleash a ' + ELEMENTS.arc.name + ' burst.', flavor: 'Every shot is a thunderhead.' },
   rush:      { name: 'Redwake Tempo',        desc: 'Kills stack +20% damage and fire rate (x5) for 6s.', flavor: 'Keep killing. Keep climbing.' },
   // ---- armor
   astro:     { name: 'Quickfuse Reserves',  desc: 'Grenade cooldown halved. Grenade kills instantly recharge it.', flavor: 'Starlight never runs out.' },
   harmony:   { name: 'Drumbeat Charge',   desc: '+50% Super energy gain. Killing a major or boss grants +20% Super.', flavor: 'Every fight sings.' },
-  inmost:    { name: NAMES.heartfire,      desc: 'Kills restore 12 HP and 15 shield. Breaking your shield releases a ' + NAMES.heartfire + ' nova (8s cooldown).', flavor: 'It burns brightest when you break.' },
+  inmost:    { name: NAMES.heartfire,      desc: 'Kills restore 12 HP and 15 shield. Breaking your shield releases a ' + NAMES.heartfire + ' burst (8s cooldown).', flavor: 'It burns brightest when you break.' },
   dune:      { name: 'Salt Stride',      desc: '+15% sprint speed. Your double jump unleashes a ' + ELEMENTS.arc.name + ' shockwave.', flavor: 'Run the sand. Shake the ground.' },
   stoic:     { name: 'Kestrelwing Resolve',  desc: 'Take 12% less damage. Once per 45s a fatal hit is survived: restore 50% health, 2s invulnerable.', flavor: 'Ash is just a pause.' }
 };
@@ -849,7 +861,7 @@ function starterGear() {
 // =====================================================================
 const SAVE_KEY = 'dfps_save';
 const SAVE_VERSION = 6;
-const GAME_BUILD = 'v8-strikes';
+const GAME_BUILD = 'v9.1-hotfix';
 const LEGACY_SAVE_KEY = 'dungeonfps.save.v2';        // v2-destiny .. v5-nostick wrote {v:2,...} here
 const LEGACY_SETTINGS_KEY = 'dungeonfps.settings.v1'; // v3-controls .. v5-nostick wrote settings here
 const BACKUP_PREFIX = 'dfps_backup_';
@@ -1273,7 +1285,7 @@ const PERKS = {
   dragonfly:   { col: 'B', name: 'Scorch Bloom',            desc: 'Precision kills detonate in a 5m elemental blast that scorches survivors.' },
   feedingfrenzy: { col: 'B', name: 'Hungry Barrel',     desc: 'Kills stack +8% fire rate (up to x3) for 5s.' },
   incandescent: { col: 'B', name: 'Kindling',        desc: 'Kills scorch enemies within 6m, burning them for 3s.' },
-  voltshot:    { col: 'B', name: 'Live Wire',             desc: 'Kills charge your shots for 5s: hits arc lightning to a nearby enemy.', not: ['rocket', 'launcher'] },
+  voltshot:    { col: 'B', name: 'Live Wire',             desc: 'Kills charge your shots for 5s: hits chain ' + ELEMENTS.arc.name + ' lightning to a nearby enemy.', not: ['rocket', 'launcher'] },
   headseeker:  { col: 'B', name: 'Skull Tracker',           desc: 'Precision hits grant +25% precision damage for 3s.', not: ['rocket', 'launcher'] },
   frenzy:      { col: 'B', name: 'Fever Pitch',               desc: 'After 5s of sustained combat: +18% damage and +12% fire rate.' },
   demolitionist: { col: 'B', name: 'Fuse Tuner',      desc: 'Kills cut your grenade cooldown (1.2s minor, 3s major/boss).' },
@@ -1386,8 +1398,8 @@ defX('swarm', { n: ['Bomblets', '', 1, [5, 6, 7, 8, 9]], frac: ['Bomblet damage'
   p => 'The grenade bursts into ' + p.n + ' cluster bomblets (' + pct(p.frac) + '% damage each).', 'Bomblets have +40% blast radius.');
 defX('hammer', { refill: ['Rounds per kill', '', 1, [20, 25, 30, 35, 40]], heal: ['Heal', '% max HP', 100, [.08, .10, .12, .14, .16]] },
   p => 'Kills refill ' + p.refill + ' heavy rounds. Every 3rd kill restores ' + pct(p.heal) + '% health.', 'Every 2nd kill heals instead of every 3rd.');
-defX('storm', { need: ['Hits to nova', '', 1, [30, 27, 24, 21, 18]], rad: ['Nova radius', 'm', 1, [7, 7.5, 8, 8.5, 9]] },
-  p => 'Hits build charge. At ' + p.need + ' charges, unleash a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' nova.', 'Nova deals +50% damage and leaves 10 charge behind.');
+defX('storm', { need: ['Hits to burst', '', 1, [30, 27, 24, 21, 18]], rad: ['Burst radius', 'm', 1, [7, 7.5, 8, 8.5, 9]] },
+  p => 'Hits build charge. At ' + p.need + ' charges, unleash a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' burst.', 'The burst deals +50% damage and leaves 10 charge behind.');
 defX('rush', { per: ['Per stack', '%', 100, [.2, .22, .24, .26, .28]], max: ['Max stacks', '', 1, [5, 5, 6, 6, 6]], dur: ['Duration', 's', 1, [6, 6.5, 7, 7.5, 8]] },
   p => 'Kills stack +' + pct(p.per) + '% damage and fire rate (x' + p.max + ') for ' + p.dur + 's.', '+2 maximum stacks.');
 // ---- armor
@@ -1395,8 +1407,8 @@ defX('astro', { cd: ['Grenade cooldown', '%', 100, [.5, .45, .4, .35, .3]] },
   p => 'Grenade cooldown reduced to ' + pct(p.cd) + '%. Grenade kills instantly recharge it.', 'Grenade kills also grant +10 Super.');
 defX('harmony', { gain: ['Super gain', '%', 100, [1.5, 1.6, 1.7, 1.8, 1.9]], bonus: ['Major/boss kill', '% Super', 1, [20, 22, 24, 26, 28]] },
   p => '+' + pct(p.gain - 1) + '% Super energy gain. Killing a major or boss grants +' + p.bonus + '% Super.', 'Super damage resistance lasts 0.8s longer.');
-defX('inmost', { heal: ['Heal per kill', '% max HP', 100, [.08, .10, .12, .14, .16]], sh: ['Shield per kill', '% max', 100, [.15, .18, .21, .24, .27]], rad: ['Nova radius', 'm', 1, [7, 7.5, 8, 8.5, 9]], cd: ['Nova cooldown', 's', 1, [8, 7.5, 7, 6.5, 6]] },
-  p => 'Kills restore ' + pct(p.heal) + '% health and ' + pct(p.sh) + '% shield. Breaking your shield releases a ' + p.rad + 'm ' + NAMES.heartfire + ' nova (' + p.cd + 's cooldown).', 'The nova also restores 25% health.');
+defX('inmost', { heal: ['Heal per kill', '% max HP', 100, [.08, .10, .12, .14, .16]], sh: ['Shield per kill', '% max', 100, [.15, .18, .21, .24, .27]], rad: ['Burst radius', 'm', 1, [7, 7.5, 8, 8.5, 9]], cd: ['Burst cooldown', 's', 1, [8, 7.5, 7, 6.5, 6]] },
+  p => 'Kills restore ' + pct(p.heal) + '% health and ' + pct(p.sh) + '% shield. Breaking your shield releases a ' + p.rad + 'm ' + NAMES.heartfire + ' burst (' + p.cd + 's cooldown).', 'The burst also restores 25% health.');
 defX('dune', { spd: ['Sprint speed', '%', 100, [.15, .17, .19, .21, .23]], rad: ['Shockwave radius', 'm', 1, [5.5, 6, 6.5, 7, 7.5]], cd: ['Shockwave cooldown', 's', 1, [2.5, 2.3, 2.1, 1.9, 1.7]] },
   p => '+' + pct(p.spd) + '% sprint speed. Your double jump unleashes a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' shockwave (' + p.cd + 's cooldown).', 'The shockwave chills enemies for 3s.');
 defX('stoic', { res: ['Damage resistance', '%', 100, [.12, .14, .16, .18, .20]], cd: ['Save cooldown', 's', 1, [45, 42, 39, 36, 33]], restore: ['Health restored', '%', 100, [.5, .5, .55, .6, .65]] },
@@ -4097,8 +4109,8 @@ function updatePerkHud() {
   if (id === 'storm') chip('CHARGE ' + xs.stormCharge + '/' + EV(w, 'need'), '#66aaff');
   if (id === 'thunder') chip(ELEMENTS.arc.name.toUpperCase() + ' ' + (buffs.thunderHits % EV(w, 'n')) + '/' + EV(w, 'n'), '#77ddff');
   if (id === 'hammer') chip('FEED ' + (xs.hammerKills % (exoCat(w) ? 2 : 3)) + '/' + (exoCat(w) ? 2 : 3), '#ffaa22');
-  if (P.stoic) chip(gt >= xs.phoenixAt ? 'PHOENIX READY' : 'PHOENIX ' + Math.ceil(xs.phoenixAt - gt) + 's', gt >= xs.phoenixAt ? '#ff9944' : '#a86');
-  if (P.inmost) chip(gt >= xs.novaAt ? 'NOVA READY' : 'NOVA ' + Math.ceil(xs.novaAt - gt) + 's', gt >= xs.novaAt ? '#fff0a0' : '#aa9');
+  if (P.stoic) chip(gt >= xs.phoenixAt ? 'KESTREL READY' : 'KESTREL ' + Math.ceil(xs.phoenixAt - gt) + 's', gt >= xs.phoenixAt ? '#ff9944' : '#a86');
+  if (P.inmost) chip(gt >= xs.novaAt ? 'BURST READY' : 'BURST ' + Math.ceil(xs.novaAt - gt) + 's', gt >= xs.novaAt ? '#fff0a0' : '#aa9');
   if (P.dune) chip(gt >= xs.shockAt ? 'SHOCK READY' : 'SHOCK ' + Math.ceil(xs.shockAt - gt) + 's', gt >= xs.shockAt ? '#e0b060' : '#a98');
   perkChips(w, chip);
   const html = out.join('');
@@ -4596,7 +4608,7 @@ function resumePatrol() {
   activity = ACTIVITIES.waves; STRIKE.stageState = 'over';
   clearField(false);
   paused = false;
-  if (!prog.patrolToastShown) { prog.patrolToastShown = true; setTimeout(() => toast('Patrol rewards are reduced \u2014 Strikes pay more.', '#ffd45a'), 400); }
+  if (!prog.patrolToastShown) { prog.patrolToastShown = true; setTimeout(() => { if (!paused) toast('Patrol rewards are reduced \u2014 Strikes pay more.', '#ffd45a'); }, (h && h.inter) ? 400 : 5500); }   // v9.1: a fresh wave shows the 3 s banner (+ the 3.1 s Arena toast): wait for both
   prog.lastMode = 'patrol';
   if (h && h.inter) { wave = h.inter.w; waveState = 'inter'; setArenaForWave(wave); enterIntermission(h.inter); }
   else { wave = h ? h.wave : wave; startWave(wave); }
@@ -4926,7 +4938,7 @@ function gpMenu(p, dt, root, panel) {
   const R = gpStick(p, 2, 3); if (R.m > 0 && gp.focus) { const s = gpScrollable(gp.focus); if (s) s.scrollTop += R.y * 700 * dt; }
   const a = gpEdge(p, 0), b = gpEdge(p, 1), st = gpEdge(p, 9);
   if (root.id === 'inventory-overlay' && !panel && gpEdge(p, 2)) { const it = getItem(selId) || (gp.focus && gp.focus.closest && gp.focus.closest('.inv-item') && gp.focus.closest('.inv-item').querySelector('[data-lock]') ? getItem(gp.focus.closest('.inv-item').querySelector('[data-lock]').dataset.lock) : null); if (it) { toggleLock(it); renderInventory(); } }
-  if (a) { if (!gp.focus) gpMoveFocus(root, 'down'); else gpPress(gp.focus); }
+  if (a) { if (!gp.focus && root.id === 'ms-overlay' && msPreferredBtn()) { gpSetFocus(msPreferredBtn()); gpPress(gp.focus); } else if (!gp.focus) gpMoveFocus(root, 'down'); else gpPress(gp.focus); }   // v9.1: A on a fresh Mission Select launches the preferred card in one press
   if (b) { if (panel) gpClearFocus(); else gpBack(root); }
   if (st && !panel) { if (root.id === 'pause-overlay') togglePause(); else if (root.id === 'inventory-overlay') toggleInventory(); }
   gpHint(!panel);
@@ -5675,7 +5687,7 @@ function applyFireMode() {
 window.addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'TEXTAREA') return;
   keys[e.code] = true;
-  if (e.code === 'Escape') togglePause();
+  if (e.code === 'Escape') { const o = ['save-overlay', 'settings-overlay', 'ms-overlay'].find(id => $(id).style.display === 'flex'); if (o) gpBack($(o)); else togglePause(); }   // v9.1: Esc backs out of Settings / Mission Select / save dialog
   if (e.code === 'KeyI') toggleInventory();
   if (e.code === 'Space') { doJump(); e.preventDefault(); }
   if (e.code === 'KeyG') throwGrenade();
@@ -5840,6 +5852,7 @@ for (const b of $('g-super').children) b.onclick = () => { settings.superAct = b
 for (const b of $('g-nade').children) b.onclick = () => { settings.nadeAct = b.dataset.v; saveSettings(); syncSettingsUI(); };
 for (const b of $('g-abil').children) b.onclick = () => { settings.abilSide = b.dataset.v; saveSettings(); syncSettingsUI(); applyLayout(); };
 $('set-btn').onclick = () => { $('pause-overlay').style.display = 'none'; $('settings-overlay').style.display = 'flex'; syncSettingsUI(); };
+$('set-close2').onclick = () => $('set-close').click();
 $('set-close').onclick = () => { $('settings-overlay').style.display = 'none'; if (msFromSettings) { msFromSettings = false; return; } $('pause-overlay').style.display = 'flex'; };
 
 // =====================================================================
