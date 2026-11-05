@@ -141,6 +141,12 @@ canvas { display: block; }
 .xpbar { height: 7px; background: #0b0d08; border-radius: 4px; overflow: hidden; margin: 4px 0 5px; } .xpbar i { display: block; height: 100%; background: linear-gradient(90deg,#b8860b,#ffd45a); }
 #inv-detail .row.small, .exopanel .small { font-size: 11px; }
 #inv-detail button.upg { background: #6a4a10; border-color: #ffd45a; }
+#inv-detail button.upg.raise { background: #1f5a38; border-color: #7fe39a; min-height: 44px; }
+#shop-raise { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin: 0 0 6px; flex-wrap: wrap; }
+#shop-raise button { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #7fe39a; background: #1f5a38; color: #fff; font-weight: 800; }
+#shop-raise button:disabled { opacity: .45; }
+#shop-raise .chip { min-height: 32px; padding: 0 10px; font-size: 11px; border-color: #556; background: #2b3441; }
+#shop-raise .chip.off { opacity: .5; text-decoration: line-through; }
 #inv-detail, .inv-item .main { overflow-wrap: anywhere; } #inv-detail .row span:last-child { text-align: right; min-width: 0; margin-left: 8px; }
 #inv-equipped { display: flex; gap: 4px; margin: 5px 0; flex: 0 0 auto; }
 .slot { flex: 1; min-width: 0; padding: 3px 4px; background: #1b2028; border: 1px solid #333; border-radius: 4px; font-size: 10px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -307,9 +313,9 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
   <h2>PAUSED</h2>
   <div id="pause-info" style="color:#ffd45a;margin-bottom:6px"></div>
   <div id="ios-hint">Tip: iPhone browsers have no full-screen mode. Tap Share &rarr; Add to Home Screen, then open Dungeon FPS from that icon for a bar-free view.</div>
-  <div class="prow"><button id="resume-btn">Resume</button><button id="inv-btn">Inventory / Gear</button><button id="set-btn">Settings</button><button id="missions-btn">Missions</button></div>
+  <div class="prow"><button id="resume-btn">Resume</button><button id="inv-btn">Inventory / Gear</button><button id="set-btn">Settings</button><button id="missions-btn">Missions</button><button id="leave-strike-btn" style="display:none">Leave Strike</button></div>
   <div class="prow"><button id="export-btn" class="small">Export Save</button><button id="import-btn" class="small">Import Save</button><button id="reset-btn" class="small">Reset progress</button><button id="restore-btn" class="small">Restore backup save</button></div>
-  <div id="save-note">Each link has its own storage - use Export/Import to carry progress to a new version. Save format v6.</div>
+  <div id="save-note">Each link has its own storage - use Export/Import to carry progress to a new version. Save format v7.</div>
 </div>
 <div id="save-overlay">
   <h2 id="save-title">EXPORT SAVE</h2>
@@ -321,6 +327,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 <div id="settings-overlay">
   <div id="set-top"><h2>SETTINGS</h2><button id="set-close" type="button">Back</button></div>
   <div id="set-grid">
+    <div class="srow" id="leave-row" style="display:none"><button id="leave-strike-set" type="button" style="min-height:44px;width:100%;border-radius:8px;border:1px solid #f66;background:#4a1f1f;color:#fff;font-weight:800">Leave Strike (abandon, lose its rewards)</button></div>
     <div class="srow"><label><span>Look sensitivity</span><b id="v-look">100%</b></label><input type="range" id="s-look" min="50" max="150" step="5"></div>
     <div class="srow"><label><span>Aim assist strength</span><b id="v-aim">60%</b></label><input type="range" id="s-aim" min="0" max="100" step="5"></div>
     <div class="srow"><label><span>Button size</span><b id="v-btn">100%</b></label><input type="range" id="s-btn" min="80" max="130" step="5"></div>
@@ -352,6 +359,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 </div>
 <div id="shop-overlay">
   <div id="shop-top"><h2 id="shop-title">IRONMONGER</h2><span class="sub">High-tier gear, refreshed every intermission</span><span id="shop-mats" class="matsline"></span><button id="shop-close" type="button">Close</button></div>
+  <div id="shop-raise"></div>
   <div id="shop-grid"></div>
 </div>
 
@@ -409,6 +417,15 @@ const TUNING = {
   strikeBossHp: 2600, strikeBossShield: 1300,   // Braskk in the Tarnhide Outpost strike: longer fight, the time comes from phases + Ward beacon gates
   superBoss: 520,            // Super base damage vs bosses: ~17% of boss HP at wave 1, ~26% wave 4, ~31% wave 8 at point blank (v7 480 was ~28% at wave 8 but low early; v6 was 1500 vs a 2x boss)
   wolfSplitTime: 0.08,       // seconds after launch that Wolfhorn's rocket splits
+  // v11 (item 6): Strike difficulty follows the player's Power. Enemy power is snapshotted from Power at each stage start (+ tier / Spotlight offsets); offsets below are on top of that.
+  spawnDoor: { minDist: 12, minObj: 12, telegraph: 1.2, emerge: 0.8, hw: 1.35, mouth: 2.0, relax2: 1.5, relax3: 3.5, relax4: 8, counts: { arena: 3, objective: 3, objective2: 3, mini: 4 } },   // v11 spawn doors: >= minDist from player and objective, outside the view; rules relax (hidden -> any -> farthest) only after relaxN seconds of being held
+  strikePower: { minor: 0, major: 0, mini: 5, boss: 10, floorBelow: 10, spotlight: 5 },   // floorBelow: enemies are never more than this far below the player (also enforced live if you out-gear the stage mid-stage)
+  // v11 UL-1 "Raise": any rarity can be raised to the player's CURRENT power (design/specs/universal-leveling.md). Cost = infuse cost x these multipliers (Cores round UP; Common pays none).
+  raise: {
+    // No per-rarity power ceilings (user decision): every item can be raised to the player's current Power (capped only by POWER_CAP).
+    mult: { 0: { g: 0.25, s: 0 }, 1: { g: 0.40, s: 0.34 }, 2: { g: 0.60, s: 0.50 }, 3: { g: 1.0, s: 1.0 }, 4: { g: 1.25, s: 1.25 } },   // index = rarity (4 = future raid tier)
+    bulkBiggestFirst: true
+  },
   enemyDmgSlope: 0.0009      // enemy damage +0.09% per power above 100 (=+18% at the 300 cap); player HP only grows ~+10/level, so keep this mild
 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -867,12 +884,12 @@ function starterGear() {
 //  SAVE_VERSION and add a MIGRATIONS[oldVersion] step. Loading never throws and never wipes a save.
 // =====================================================================
 const SAVE_KEY = 'dfps_save';
-const SAVE_VERSION = 6;
-const GAME_BUILD = 'v10-procgen';   // v10 (v9.1 hotfix ported into parts)
+const SAVE_VERSION = 7;   // v7 (v11): progress.strikeDry (Strike loot pity counter) + settings.raiseAuto. NOTE: Classes (designed as v7) now take v8.
+const GAME_BUILD = 'v11a';
 const LEGACY_SAVE_KEY = 'dungeonfps.save.v2';        // v2-destiny .. v5-nostick wrote {v:2,...} here
 const LEGACY_SETTINGS_KEY = 'dungeonfps.settings.v1'; // v3-controls .. v5-nostick wrote settings here
 const BACKUP_PREFIX = 'dfps_backup_';
-const DEFAULT_SETTINGS = { look: 100, aim: 60, autoFire: false, joy: 'floating', lefty: false, btn: 100, superAct: 'hold', nadeAct: 'tap', abilSide: 'edge', padSens: 100, padInvY: false, padDead: 15, padVib: true };
+const DEFAULT_SETTINGS = { look: 100, aim: 60, autoFire: false, joy: 'floating', lefty: false, btn: 100, superAct: 'hold', nadeAct: 'tap', abilSide: 'edge', padSens: 100, padInvY: false, padDead: 15, padVib: true, raiseAuto: [true, true, true, true] };
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
 const jparse = s => { try { return JSON.parse(s); } catch (e) { return undefined; } };
@@ -903,6 +920,7 @@ function cleanSettings(raw) {
     s.autoFire = !!raw.autoFire; s.lefty = !!raw.lefty; s.joy = raw.joy === 'fixed' ? 'fixed' : 'floating';
     s.superAct = raw.superAct === 'tap' ? 'tap' : 'hold'; s.nadeAct = raw.nadeAct === 'hold' ? 'hold' : 'tap'; s.abilSide = raw.abilSide === 'opp' ? 'opp' : 'edge';
     s.padSens = num(raw.padSens, 100, 40, 200); s.padInvY = !!raw.padInvY; s.padDead = num(raw.padDead, 15, 5, 35); s.padVib = raw.padVib !== false;
+    s.raiseAuto = [0, 1, 2, 3].map(i => !(Array.isArray(raw.raiseAuto) && raw.raiseAuto[i] === false));   // v11: Ironmonger 'Raise All' includes this rarity
   }
   return s;
 }
@@ -964,14 +982,17 @@ const MIGRATIONS = {
     if (Array.isArray(o.inventory)) out.inventory = o.inventory.map(renameLegacyItem);
     if (isObj(o.inter) && Array.isArray(o.inter.stock)) out.inter = Object.assign({}, o.inter, { stock: o.inter.stock.map(renameLegacyItem) });
     return out;
-  }
+  },
+  // 6 -> 7 (v11): progress.strikeDry (Strike loot pity counter; it used to be lost on reload) starts at 0; settings gain raiseAuto (all rarities on). Items are untouched, so every item id stays stable.
+  6: o => Object.assign({}, o, { saveVersion: 7, progress: Object.assign({}, isObj(o.progress) ? o.progress : {}, { strikeDry: 0 }), settings: isObj(o.settings) ? Object.assign({}, o.settings, { raiseAuto: [true, true, true, true] }) : o.settings })
 };
-function defaultProgressExtra() { return { strikes: { fallen_outpost: { clears: 0, bestTimeSec: 0, bestTier: 0 } }, lastMode: 'patrol', lastDailyClear: -1, patrolToastShown: false, active: null }; }
+function defaultProgressExtra() { return { strikeDry: 0, strikes: { fallen_outpost: { clears: 0, bestTimeSec: 0, bestTier: 0 } }, lastMode: 'patrol', lastDailyClear: -1, patrolToastShown: false, active: null }; }
 // sanitise the strike part of save.progress (unknown ids / out-of-range numbers are clamped or dropped; never throws, never wipes the rest of the save)
 const STRIKE_IDS = { fallen_outpost: 1 };
 function sanitizeProgressExtra(pr) {
   const out = defaultProgressExtra();
   if (isObj(pr.strikes)) for (const id of Object.keys(STRIKE_IDS)) { const s = pr.strikes[id]; if (isObj(s)) out.strikes[id] = { clears: Math.round(num(s.clears, 0, 0, 1e6)), bestTimeSec: Math.round(num(s.bestTimeSec, 0, 0, 1e6)), bestTier: Math.round(num(s.bestTier, 0, 0, 5)) }; }
+  out.strikeDry = Math.round(num(pr.strikeDry, 0, 0, 99));
   out.lastMode = pr.lastMode === 'strike' ? 'strike' : 'patrol';
   out.lastDailyClear = Math.round(num(pr.lastDailyClear, -1, -1, 1e7));
   out.patrolToastShown = !!pr.patrolToastShown;
@@ -1468,19 +1489,45 @@ function setItemPower(it, p) {
 // highest power the player has: best item in the inventory, the current zone power, or the equipped average
 const highestPower = () => { let m = Math.max(player.power, zonePower()); for (const i of inventory) if (i.power > m) m = i.power; return m; };
 const infuseTarget = () => Math.min(POWER_CAP, player.power);   // v8: an exotic is Reburnished to the player's CURRENT power (never past POWER_CAP), so it can't shortcut the climb
-// Cost grows gently with the GAP (not with absolute power): Brass 25 + 8*gap^0.75, Kiln Cores 1 + sqrt(gap)/10 (max 25).
-function infuseCost(it) {
-  const gap = Math.max(0, infuseTarget() - it.power);
+// v11 UL-1 RAISE (every rarity): Brass 25 + 8*gap^0.75, Kiln Cores 1 + sqrt(gap)/10 (max 25), times TUNING.raise.mult[rarity]. Exotics (x1.0) keep the exact v10 Reburnish price.
+// There are NO per-rarity ceilings: every item may be raised to the player's current power.
+const raiseTarget = () => infuseTarget();   // no ceilings: every rarity raises to the player's current power
+function raiseCost(it) {
+  const gap = Math.max(0, raiseTarget() - it.power);
   if (gap <= 0) return null;
-  return { gap, g: Math.round(25 + 8 * Math.pow(gap, 0.75)), s: Math.min(25, 1 + Math.floor(Math.sqrt(gap) / 10)) };
+  const m = TUNING.raise.mult[Math.min(4, it.rarity | 0)] || TUNING.raise.mult[3];
+  const bg = 25 + 8 * Math.pow(gap, 0.75), bs = Math.min(25, 1 + Math.floor(Math.sqrt(gap) / 10));
+  return { gap, g: Math.round(bg * m.g), s: Math.min(25, Math.ceil(bs * m.s - 1e-9)) };
+}
+const infuseCost = raiseCost;   // v10 name kept (exotic UI + tests)
+// Raising is a Gear / intermission action, never mid-Strike (exotic Reburnish keeps its v10 rules)
+const raiseBlocked = it => !!(typeof inStrike === 'function' && inStrike() && ['intro', 'active', 'clear'].includes(STRIKE.stageState) && !(it && it.rarity === 3));
+function raiseItem(it) {
+  if (!it) return { ok: false, why: 'none' };
+  if (raiseBlocked(it)) return { ok: false, why: 'strike' };
+  const c = raiseCost(it); if (!c) return { ok: false, why: 'maxed' };
+  if (mats.glimmer < c.g || mats.shards < c.s) return { ok: false, why: 'mats', cost: c };
+  mats.glimmer -= c.g; mats.shards -= c.s; matsChangedAt = performance.now();
+  const from = it.power; setItemPower(it, raiseTarget()); recalcStats(); saveSoon();
+  return { ok: true, from, to: it.power, cost: c };
 }
 function infuseExotic(it) {
   if (!it || it.rarity !== 3) return { ok: false, why: 'notexotic' };
-  const c = infuseCost(it); if (!c) return { ok: false, why: 'maxed' };
-  if (mats.glimmer < c.g || mats.shards < c.s) return { ok: false, why: 'mats', cost: c };
-  mats.glimmer -= c.g; mats.shards -= c.s; matsChangedAt = performance.now();
-  const from = it.power; setItemPower(it, infuseTarget()); recalcStats(); saveSoon();
-  return { ok: true, from, to: it.power, cost: c };
+  return raiseItem(it);
+}
+// Raise All (Ironmonger): every owned item below its target, biggest gap first, stops when mats run out. preview=true spends nothing.
+function raiseAllPlan() {
+  const items = inventory.filter(i => (settings.raiseAuto || [])[i.rarity] !== false && raiseCost(i)).map(i => ({ it: i, gap: raiseTarget() - i.power })).sort((a, b) => b.gap - a.gap || b.it.rarity - a.it.rarity);
+  let g = mats.glimmer, s = mats.shards; const pick = [], tot = { g: 0, s: 0 };
+  for (const e of items) { const c = raiseCost(e.it); if (g < c.g || s < c.s) continue; g -= c.g; s -= c.s; tot.g += c.g; tot.s += c.s; pick.push(e.it); }
+  return { eligible: items.length, items: pick, cost: tot };
+}
+function raiseAll() {
+  if (raiseBlocked()) return { ok: false, why: 'strike' };
+  const plan = raiseAllPlan(); if (!plan.items.length) return { ok: false, why: plan.eligible ? 'mats' : 'maxed' };
+  let n = 0; const tot = { g: 0, s: 0 };
+  for (const it of plan.items) { const r = raiseItem(it); if (!r.ok) break; n++; tot.g += r.cost.g; tot.s += r.cost.s; }
+  return { ok: n > 0, n, cost: tot, left: plan.eligible - n };
 }
 
 // =====================================================================
@@ -1657,7 +1704,9 @@ function setWorld(x0, x1, z0, z1) {
   G_OX = Math.floor(x0) - 2; G_OZ = Math.floor(z0) - 2; G_W = Math.ceil(x1) + 2 - G_OX; G_H = Math.ceil(z1) + 2 - G_OZ; G_N2 = G_W * G_H;
   NAV.g = new Float32Array(G_N2); NAV.par = new Int32Array(G_N2); NAV.mark = new Uint32Array(G_N2); NAV.closed = new Uint32Array(G_N2); NAV.stamp = 0;
 }
-const LV = { on: false, boss: false };   // v10: generated-level state (filled in by p8.js); .on = a procgen level / boss arena is the current world
+const LV = { on: false, boss: false };
+// v11 (L3): the Strike loot pity counter lives in the save (prog.strikeDry) instead of being lost on reload
+Object.defineProperty(LV, 'strikeDry', { get: () => (prog.strikeDry | 0), set: v => { v = Math.max(0, Math.round(+v || 0)); if (prog.strikeDry !== v) { prog.strikeDry = v; if (typeof saveSoon === 'function') saveSoon(); } }, enumerable: true });   // v10: generated-level state (filled in by p8.js); .on = a procgen level / boss arena is the current world
 const PROCGEN = !/[?&]legacyarena=1/.test(location.search);   // v10: generated Strike levels (?legacyarena=1 restores the single arena)
 let GA = null;   // v10: ground height function (boss arena only); null = flat world
 const groundAt = (x, z) => GA ? GA(x, z) : 0;
@@ -2046,9 +2095,10 @@ function updateProjectiles(dt) {
         projExplode(p); dead = true; break;
       }
       if (p.team === 'e') {
-        const dx = px - camera.position.x, dz = pz - camera.position.z, rr = 0.5 + p.size;
-        if (dx * dx + dz * dz < rr * rr && py > camera.position.y - 1.65 && py < camera.position.y + 0.25) {
-          if (!player.dead && gt >= player.invulnUntil) damagePlayer(p.dmg * enemyDmgMult(p.power), p.tier);
+        const rr = 0.5 + p.size; let hitP = null;
+        for (const P of players) { const dx = px - P.pos.x, dz = pz - P.pos.z; if (dx * dx + dz * dz < rr * rr && py > P.pos.y - 1.65 && py < P.pos.y + 0.25) { hitP = P; break; } }   // v11: any player entity can be hit
+        if (hitP) {
+          if (!hitP.state.dead && gt >= hitP.state.invulnUntil) hurtEnt(hitP, p.dmg * enemyDmgMult(p.power), p.tier);
           fx('burst', px, py, pz, p.color, 0.7, 0.2, 0.7);
           dead = true; break;
         }
@@ -2103,7 +2153,9 @@ const softPow = (x, k2, knee) => 0.004 * Math.max(0, x) + k2 * Math.min(Math.max
 const hpScaleFor = e => 1 + softPow(e - 100, 0.006, 600);
 const enemyDamageScale = e => 1 + Math.max(0, e - 100) * ENEMY_DMG_SLOPE;
 const ENEMY_DMG_SLOPE = TUNING.enemyDmgSlope;   // +9% enemy damage per 100 power above 100 (=+18% at the 300 cap); see TUNING in p1.js
-const zonePower = () => activity.mode === 'strike' ? Math.min(POWER_CAP, activity.enemyPower)   // strikes: fixed enemy power per tier (O-1)
+// v11: strikes derive enemy power from the player's Power at stage start (strikeEnemyPower, stored in STRIKE.enemyPower) plus the tier offset (tierRec(t) - tierRec(1)) and the Spotlight offset.
+const strikeEnemyPower = tier => { const T = TUNING.strikePower; let e = (player.power || 100) + (tierRec(tier || 1) - tierRec(1)); if (typeof strikeSpotlight === 'function' && strikeSpotlight()) e += T.spotlight; return Math.round(Math.min(POWER_CAP, Math.max(1, e))); };
+const zonePower = () => activity.mode === 'strike' ? Math.min(POWER_CAP, Math.max(activity.enemyPower, (player.power || 100) - TUNING.strikePower.floorBelow))   // strikes: tracks the player's Power (v11), never more than floorBelow under it
   : Math.min(POWER_CAP, Math.max(100 + (player.level - 1) * 3 + (wave - 1) * 4, Math.round((player.power || 0) * 0.92)));
 const playerDmgMult = ePower => clamp(1 + 1.5 * (player.power - ePower) / Math.max(100, ePower), 0.45, 1.6);   // our damage vs enemy
 const enemyDmgMult = ePower => clamp(1 + 2 * (ePower - player.power) / Math.max(100, player.power), 0.5, 2.2) * enemyDamageScale(ePower);     // their damage vs us
@@ -2225,7 +2277,9 @@ function spawnEnemy(type, at, opts) {
   const root = new THREE.Group();
   const model = MODELS[type]();
   root.add(model);
-  const power = zonePower() + (def.tier === 'major' ? 2 : def.tier === 'boss' ? 6 : 0);
+  const SP = TUNING.strikePower, power = activity.mode === 'strike'   // v11: strike enemies sit at Power; mini-bosses +5, the boss +10 (Patrol keeps its +2 / +6)
+    ? zonePower() + (opts.mini ? SP.mini : def.tier === 'boss' ? SP.boss : def.tier === 'major' ? SP.major : SP.minor)
+    : zonePower() + (def.tier === 'major' ? 2 : def.tier === 'boss' ? 6 : 0);
   const hpScale = hpScaleFor(power);
   const element = pick(ELEMENT_KEYS);
   const baseHp = opts.hp || def.hp, baseSh = opts.shield !== undefined ? opts.shield : (def.shield || 0);
@@ -2432,9 +2486,9 @@ function startAct(e, dur, fn) {
 }
 function enemyShoot(e, o = {}) {
   const u = e.userData, def = u.def;
-  const dx = camera.position.x - e.position.x, dz = camera.position.z - e.position.z, d = Math.hypot(dx, dz) || 1;
+  const dx = TGT.x - e.position.x, dz = TGT.z - e.position.z, d = Math.hypot(dx, dz) || 1;
   const org = new THREE.Vector3(e.position.x + dx / d * (def.r + 0.4), e.position.y + def.mh, e.position.z + dz / d * (def.r + 0.4));
-  const dir = new THREE.Vector3(camera.position.x, camera.position.y - 0.4, camera.position.z).sub(org).normalize();
+  const dir = new THREE.Vector3(TGT.x, TGT.y - 0.4, TGT.z).sub(org).normalize();
   if (o.yaw) { const c = Math.cos(o.yaw), s = Math.sin(o.yaw), x = dir.x * c - dir.z * s, z = dir.x * s + dir.z * c; dir.x = x; dir.z = z; }
   const sp = o.spread === undefined ? 0.035 : o.spread;
   dir.x += (Math.random() - 0.5) * sp * 2; dir.y += (Math.random() - 0.5) * sp; dir.z += (Math.random() - 0.5) * sp * 2; dir.normalize();
@@ -2450,9 +2504,9 @@ function doBlink(e) {
   const u = e.userData;
   for (let t = 0; t < 30; t++) {
     const a = Math.random() * 6.283, d = rand(11, 19);
-    const x = camera.position.x + Math.cos(a) * d, z = camera.position.z + Math.sin(a) * d;
+    const x = TGT.x + Math.cos(a) * d, z = TGT.z + Math.sin(a) * d;
     if (!pointFree(GRIDS.small, x, z)) continue;
-    if (t < 20 && !segClear(x, z, camera.position.x, camera.position.z, 0)) continue;
+    if (t < 20 && !segClear(x, z, TGT.x, TGT.z, 0)) continue;
     fx('ring', e.position.x, 0.1, e.position.z, u.def.color, 2.4, 0.5, 0.8);
     e.position.x = x; e.position.z = z; u.path = null; u.cvx = u.cvz = 0;
     fx('ring', x, 0.1, z, u.def.color, 2.4, 0.5, 0.8);
@@ -2464,7 +2518,7 @@ function doBlink(e) {
   return false;
 }
 function findCover(e) {
-  const u = e.userData, px = camera.position.x, pz = camera.position.z;
+  const u = e.userData, px = TGT.x, pz = TGT.z;
   let best = null, bs = 1e9;
   for (let t = 0; t < 18; t++) {
     const a = Math.random() * 6.283, d = rand(4, 12);
@@ -2481,7 +2535,7 @@ function findCover(e) {
 
 const AI = {
   dreg(e, dt, dist, dx, dz) {
-    const u = e.userData, px = camera.position.x, pz = camera.position.z, sp = u.def.speed;
+    const u = e.userData, px = TGT.x, pz = TGT.z, sp = u.def.speed;
     if (dist < 2.5) {
       if (!u.wind && gt >= u.meleeAt) { u.wind = gt + 0.3; u.muzzle.visible = true; u.muzzle.position.set(0, 1.2, 0.6); u.muzzle.scale.setScalar(0.3); }
     } else if (gt >= u.pauseUntil) {
@@ -2492,7 +2546,7 @@ const AI = {
     }
     if (u.wind && gt >= u.wind) {
       u.wind = 0; u.muzzle.visible = false; u.meleeAt = gt + 1.0;
-      if (dist < 2.9 && !player.dead) { damagePlayer(u.def.melee * enemyDmgMult(u.power), u.tier); fx('burst', px, camera.position.y - 0.5, pz, 0xff4444, 0.6, 0.15, 0.5); }
+      if (dist < 2.9 && !TGT.dead) { hurtEnt(TGT.ent, u.def.melee * enemyDmgMult(u.power), u.tier); fx('burst', px, TGT.y - 0.5, pz, 0xff4444, 0.6, 0.15, 0.5); }
     }
     if (gt >= u.pauseCheckAt) { u.pauseCheckAt = gt + rand(2, 4); if (Math.random() < 0.45 && dist > 4) u.pauseUntil = gt + rand(0.25, 0.55); }
     if (u.los && dist > 7 && dist < 18 && gt >= u.nextShot && gt >= u.reactUntil && !u.wind) {
@@ -2511,7 +2565,7 @@ const AI = {
     });
     switch (u.vstate) {
       case 'advance':
-        pathMove(e, camera.position.x, camera.position.z, sp);
+        pathMove(e, TGT.x, TGT.z, sp);
         if (u.los && dist < 18) { u.vstate = 'aim'; u.stateUntil = gt + 1.5; }
         break;
       case 'aim':
@@ -2528,7 +2582,7 @@ const AI = {
         else if (gt >= u.stateUntil) { u.vstate = 'peek'; u.stateUntil = gt + 2.4; }
         break;
       case 'peek':
-        pathMove(e, camera.position.x, camera.position.z, sp * 0.9);
+        pathMove(e, TGT.x, TGT.z, sp * 0.9);
         if (u.los) { u.vstate = 'aim'; u.stateUntil = gt; u.reactUntil = Math.max(u.reactUntil, gt + 0.25); }
         else if (gt > u.stateUntil) u.vstate = 'advance';
         break;
@@ -2537,7 +2591,7 @@ const AI = {
   captain(e, dt, dist, dx, dz) {
     const u = e.userData, sp = u.def.speed;
     if (dist < 10) addVel(u, -dx, -dz, sp * 0.9);
-    else if (dist > 20 || !u.los) pathMove(e, camera.position.x, camera.position.z, sp);
+    else if (dist > 20 || !u.los) pathMove(e, TGT.x, TGT.z, sp);
     else strafe(e, dist, dx, dz, sp * 0.8);
     if (gt >= u.blinkAt) {
       if (dist < 9 || !u.los || Math.random() < 0.5) { if (doBlink(e)) u.blinkAt = gt + rand(6, 9); else u.blinkAt = gt + 1.5; }
@@ -2552,11 +2606,11 @@ const AI = {
     const u = e.userData, sp = u.def.speed;
     if (dist < 3.2) {
       if (!u.wind && gt >= u.meleeAt) { u.wind = gt + 0.45; u.muzzle.visible = true; u.muzzle.position.set(0, 1.6, 0.9); u.muzzle.scale.setScalar(0.4); }
-    } else if (dist > 11 || !u.los) pathMove(e, camera.position.x, camera.position.z, sp);
+    } else if (dist > 11 || !u.los) pathMove(e, TGT.x, TGT.z, sp);
     else strafe(e, dist, dx, dz, sp * 0.5);
     if (u.wind && gt >= u.wind) {
       u.wind = 0; u.muzzle.visible = false; u.muzzle.position.set(0, u.def.mh, 0.7); u.meleeAt = gt + 1.4;
-      if (dist < 3.8 && !player.dead) { damagePlayer(u.def.melee * enemyDmgMult(u.power), u.tier); fx('ring', e.position.x, 0.1, e.position.z, 0xff8a33, 4, 0.3, 0.7); }
+      if (dist < 3.8 && !TGT.dead) { hurtEnt(TGT.ent, u.def.melee * enemyDmgMult(u.power), u.tier); fx('ring', e.position.x, 0.1, e.position.z, 0xff8a33, 4, 0.3, 0.7); }
     }
     if (u.los && dist > 4 && gt >= u.nextShot && gt >= u.reactUntil && !u.wind) {
       u.nextShot = gt + rand(2.8, 4);
@@ -2567,9 +2621,15 @@ const AI = {
 
 function updateEnemy(e, dt) {
   const u = e.userData, def = u.def;
-  const px = camera.position.x, pz = camera.position.z;
+  const tp = aiTarget(e); u.tgtEnt = tp; setTarget(tp);   // v11: nearest living player entity
+  const px = TGT.x, pz = TGT.z;
   u.vx = 0; u.vz = 0;
-  if (gt < u.spawnUntil) { e.scale.setScalar(0.3 + 0.7 * (1 - (u.spawnUntil - gt) / 0.9)); return; }
+  if (gt < u.spawnUntil) {
+    if (u.emerge) { const m = u.emerge, k = Math.max(0, Math.min(1, (gt - m.t0) / (m.t1 - m.t0))); e.position.x = m.x0 + (m.x1 - m.x0) * k; e.position.z = m.z0 + (m.z1 - m.z0) * k; e.scale.setScalar(0.92 + 0.08 * k); }   // v11: walking out of a spawn door
+    else e.scale.setScalar(0.3 + 0.7 * (1 - (u.spawnUntil - gt) / 0.9));
+    return;
+  }
+  if (u.emerge) { u.emerge = null; e.scale.setScalar(1); u.lastX = e.position.x; u.lastZ = e.position.z; u.stuckAt = gt + 1; }
   if (e.scale.x !== 1) e.scale.setScalar(1);
   let dx = px - e.position.x, dz = pz - e.position.z;
   const dist = Math.hypot(dx, dz) || 0.001;
@@ -2630,8 +2690,8 @@ function resolveEnemies() {
         b.position.x += dx / d * push * (1 - wa); b.position.z += dz / d * push * (1 - wa);
       }
     }
-    const dx = a.position.x - camera.position.x, dz = a.position.z - camera.position.z, d = Math.hypot(dx, dz), min = ua.r + 0.5;
-    if (d < min && d > 1e-4) { a.position.x += dx / d * (min - d); a.position.z += dz / d * (min - d); }
+    for (const P of players) { const dx = a.position.x - P.pos.x, dz = a.position.z - P.pos.z, d = Math.hypot(dx, dz), min = ua.r + 0.5;
+      if (d < min && d > 1e-4) { a.position.x += dx / d * (min - d); a.position.z += dz / d * (min - d); } }
   }
   for (const e of enemies) {
     if (e.userData.def.ghost) continue;
@@ -2682,7 +2742,11 @@ function pumpSpawns(maxAlive, spawnOpts) {
     for (let i = 0; i < q.length; i++) {
       const raw = q[i], ai = raw.indexOf('@'), t = ai < 0 ? raw : raw.slice(0, ai), d = ENEMY_DEFS[t];
       if (d.free) { if (t === 'shriek' && typeCount('shriek') >= (LV.boss ? 6 : 3)) continue; }
-      else if (liveCount() >= maxAlive) continue;
+      else if (liveCount() + (typeof sdPendingCount === 'function' ? sdPendingCount() : 0) >= maxAlive) continue;
+      if (LV.on && typeof sdWants === 'function' && !(ai >= 0 && LV.boss) && sdWants()) {   // v11: enemies come out of spawn doors (telegraph -> emerge); held while no door is out of view and >= 12 m away
+        if (!sdRequest(t, (spawnOpts && spawnOpts(t)) || {}, spawnHook)) { nextSpawnAt = gt + 0.3; return false; }
+        q.splice(i, 1); nextSpawnAt = gt + (t === 'shriek' ? 0.25 : 0.6); return true;
+      }
       q.splice(i, 1);
       const so = (spawnOpts && spawnOpts(t)) || {}; let at = null;
       if (ai >= 0 && LV.boss) { at = lvPadPoint(raw.slice(ai + 1)); if (at) so.pad = raw.slice(ai + 1); }
@@ -2753,13 +2817,13 @@ function aimLaser(L, ax, ay, az, bx, by, bz, w, color, op, depth) {
 let lastSniperShot = -99;
 const SNIPER = { track: 0.9, lock: 0.4 };
 function sniperMuzzle(e, out) {
-  const u = e.userData, dx = camera.position.x - e.position.x, dz = camera.position.z - e.position.z, d = Math.hypot(dx, dz) || 1;
+  const u = e.userData, dx = TGT.x - e.position.x, dz = TGT.z - e.position.z, d = Math.hypot(dx, dz) || 1;
   out.set(e.position.x + dx / d * 1.0, e.position.y + 1.1, e.position.z + dz / d * 1.0); return out;
 }
 const _sm = new THREE.Vector3();
 function sniperPerch(e) {
   if (LV.boss) return lvSniperPerch(e);
-  const px = camera.position.x, pz = camera.position.z; let best = null, bs = 1e9;
+  const px = TGT.x, pz = TGT.z; let best = null, bs = 1e9;
   for (let t = 0; t < 24; t++) {
     const a = Math.random() * 6.283, d = rand(18, 30), x = px + Math.cos(a) * d, z = pz + Math.sin(a) * d;
     if (!pointFree(GRIDS.small, x, z) || !segClear(x, z, px, pz, 0.15)) continue;
@@ -2773,13 +2837,13 @@ function sniperCancel(e, cd) { const u = e.userData; releaseLaser(u); u.sstate =
 AI.sniper = function (e, dt, dist) {
   const u = e.userData, sp = u.def.speed;
   if (u.sstate === undefined) { u.sstate = 'relocate'; u.cool = gt + 1.2; u.perch = null; u.perchAt = 0; }
-  if (player.dead) { if (u.laser) sniperCancel(e, 1.5); return; }
+  if (TGT.dead) { if (u.laser) sniperCancel(e, 1.5); return; }
   if (u.sstate === 'aim') {
     const t = gt - u.aimStart;
     if (!u.los) { sniperCancel(e, 1.5); return; }                  // never fires through cover
     if (dist < 9) { sniperCancel(e, 1.5); u.perchAt = 0; return; }
     const locked = t >= SNIPER.track;
-    if (!locked) { u.lockX = camera.position.x; u.lockY = camera.position.y - 0.4; u.lockZ = camera.position.z; }
+    if (!locked) { u.lockX = TGT.x; u.lockY = TGT.y - 0.4; u.lockZ = TGT.z; }
     if (u.laser) {
       sniperMuzzle(e, _sm);
       if (locked) aimLaser(u.laser, _sm.x, _sm.y, _sm.z, u.lockX, u.lockY, u.lockZ, 0.11 + 0.05 * Math.sin(gt * 70), 0xffffff, 1, false);
@@ -2809,15 +2873,15 @@ AI.sniper = function (e, dt, dist) {
   }
   if (!u.perch || gt >= u.perchAt) { u.perch = sniperPerch(e); u.perchAt = gt + rand(6, 8); }
   if (u.perch && Math.hypot(u.perch.x - e.position.x, u.perch.z - e.position.z) > 1.2 && !(u.los && dist >= 14 && dist <= 34 && gt < u.cool - 2)) pathMove(e, u.perch.x, u.perch.z, sp);
-  else if (!u.perch) { if (dist > 26) pathMove(e, camera.position.x, camera.position.z, sp); }
+  else if (!u.perch) { if (dist > 26) pathMove(e, TGT.x, TGT.z, sp); }
   if (u.los && dist >= 12 && dist <= 38 && gt >= u.cool && gt >= u.reactUntil && gt >= u.spawnUntil + 0.2) {
     const L = getLaser(); if (!L) { u.cool = gt + 1; return; }
     u.laser = L; u.sstate = 'aim'; u.aimStart = gt; u.lockClick = false; u.lastTick = -1;
-    u.lockX = camera.position.x; u.lockY = camera.position.y - 0.4; u.lockZ = camera.position.z;
+    u.lockX = TGT.x; u.lockY = TGT.y - 0.4; u.lockZ = TGT.z;
     if (navigator.vibrate) { /* P0-2 haptic hook: pulse at lock only */ }
   }
 };
-const dx0 = e => camera.position.x - e.position.x, dz0 = e => camera.position.z - e.position.z;
+const dx0 = e => TGT.x - e.position.x, dz0 = e => TGT.z - e.position.z;
 
 // ---- Fusebug (type 'shriek') ----
 AI.shriek = function (e, dt, dist, dx, dz) {
@@ -2825,7 +2889,7 @@ AI.shriek = function (e, dt, dist, dx, dz) {
   if (!u.hs) { u.hs = 'orbit'; u.hsUntil = gt + rand(0.9, 1.6); u.strafeDir = Math.random() < 0.5 ? 1 : -1; }
   const hover = 0.8 + Math.sin(gt * 6 + e.id) * 0.08; e.position.y = hover - 0.8 + 0.0;
   if (u.hs === 'orbit') {
-    if (!u.los) { pathMove(e, camera.position.x, camera.position.z, sp); u.hsUntil = Math.max(u.hsUntil, gt + 0.4); }
+    if (!u.los) { pathMove(e, TGT.x, TGT.z, sp); u.hsUntil = Math.max(u.hsUntil, gt + 0.4); }
     else {
       const nx = dx / dist, nz = dz / dist;
       const radial = dist > 11 ? 1 : dist < 8 ? -1 : 0;
@@ -2843,12 +2907,12 @@ AI.shriek = function (e, dt, dist, dx, dz) {
     if (gt >= u.hsUntil) {
       u.hs = 'dash'; u.dashStart = gt; u.tintHex = 0xff4400; e.scale.setScalar(1);
       const d = dist || 1; u.dashX = dx / d; u.dashZ = dz / d;                 // locks the player's CURRENT position
-      u.dashSx = e.position.x; u.dashSz = e.position.z; u.tx = camera.position.x; u.tz = camera.position.z;
+      u.dashSx = e.position.x; u.dashSz = e.position.z; u.tx = TGT.x; u.tz = TGT.z;
     }
   } else if (u.hs === 'dash') {
     const t = gt - u.dashStart, v = Math.min(11, 4 + t * 20);
     u.vx = u.dashX * v; u.vz = u.dashZ * v; u.cvx = u.vx; u.cvz = u.vz;
-    const px = camera.position.x, pz = camera.position.z, traveled = Math.hypot(e.position.x - u.dashSx, e.position.z - u.dashSz);
+    const px = TGT.x, pz = TGT.z, traveled = Math.hypot(e.position.x - u.dashSx, e.position.z - u.dashSz);
     const hitWall = circleBlocked(e.position.x + u.dashX * 0.7, e.position.z + u.dashZ * 0.7, 0.3) || !inWorld(e.position.x, e.position.z, 0.8);
     if (dist < 1.4 || hitWall || t >= 1.4 || traveled >= 14) shriekExplode(e);
   }
@@ -2857,8 +2921,7 @@ function shriekExplode(e) {
   const u = e.userData, x = e.position.x, z = e.position.z;
   fx('ring', x, 0.1, z, 0xff5522, 3.2, 0.45, 0.85); fx('burst', x, 0.8, z, 0xff8833, 2.2, 0.35, 0.7);
   sweep(200, 60, 0.3, 'sawtooth', 0.1);
-  const d = Math.hypot(camera.position.x - x, camera.position.z - z);
-  if (d <= 3.2 && !player.dead) damagePlayer(u.def.melee * enemyDmgMult(u.power) * (1 - 0.4 * d / 3.2), u.tier);
+  for (const P of players) { if (P.state.dead) continue; const d = Math.hypot(P.pos.x - x, P.pos.z - z); if (d <= 3.2) hurtEnt(P, u.def.melee * enemyDmgMult(u.power) * (1 - 0.4 * d / 3.2), u.tier); }
   killEnemy(e, { selfDestruct: true });
 }
 
@@ -2872,9 +2935,9 @@ AI.orb = function (e, dt, dist, dx, dz) {
   const a = cur + Math.max(-0.8 * dt, Math.min(0.8 * dt, diff)); u.hx = Math.cos(a); u.hz = Math.sin(a);
   u.vx = u.hx * 6; u.vz = u.hz * 6; u.cvx = u.vx; u.cvz = u.vz;
   e.position.y = 0; e.rotation.y += dt * 2;
-  if (!player.dead && dist < 1.3) {
+  if (!TGT.dead && dist < 1.3) {
     fx('ring', e.position.x, 0.2, e.position.z, u.def.color, 3, 0.45, 0.85); sweep(300, 60, 0.3, 'sawtooth', 0.08);
-    if (dist < 3) damagePlayer(u.def.bolt * enemyDmgMult(u.power), u.tier);
+    if (dist < 3) hurtEnt(TGT.ent, u.def.bolt * enemyDmgMult(u.power), u.tier);
     u.dead = true; removeEnemy(e); return;
   }
   if (gt - u.born > 8 || pointInBoxes(e.position.x, 1.3, e.position.z) || !inWorld(e.position.x, e.position.z, 0.5)) {
@@ -2980,10 +3043,10 @@ AI.boss = function (e, dt, dist, dx, dz) {
     u.vx = c.dx * 18; u.vz = c.dz * 18; u.cvx = u.vx; u.cvz = u.vz;
     const nx = e.position.x + c.dx * 1.2, nz = e.position.z + c.dz * 1.2;
     const blocked = circleBlocked(nx, nz, u.r) || !inWorld(nx, nz, 1.5);
-    if (!c.hit && !player.dead && dist < u.r + 1.1) {
-      c.hit = true; damagePlayer(def.melee * enemyDmgMult(u.power), u.tier);
-      camera.position.x += c.dx * 4; camera.position.z += c.dz * 4; pushOut(camera.position, 0.4);
-      fx('ring', camera.position.x, 0.1, camera.position.z, 0xff3322, 3, 0.4, 0.8);
+    if (!c.hit && !TGT.dead && dist < u.r + 1.1) {
+      c.hit = true; hurtEnt(TGT.ent, def.melee * enemyDmgMult(u.power), u.tier);
+      { const pp = TGT.ent.pos; pp.x += c.dx * 4; pp.z += c.dz * 4; pushOut(pp, 0.4); }
+      fx('ring', TGT.ent.pos.x, 0.1, TGT.ent.pos.z, 0xff3322, 3, 0.4, 0.8);
     }
     const traveled = Math.hypot(e.position.x - c.sx, e.position.z - c.sz);
     if (blocked || traveled >= c.len || t > 1.5) {
@@ -2996,7 +3059,7 @@ AI.boss = function (e, dt, dist, dx, dz) {
   // movement (as before)
   const spd = sp * (u.phase >= 3 ? 1.25 : 1);
   if (dist < 8) addVel(u, -dx, -dz, spd * 0.8);
-  else if (dist > 17 || !u.los) pathMove(e, camera.position.x, camera.position.z, spd);
+  else if (dist > 17 || !u.los) pathMove(e, TGT.x, TGT.z, spd);
   else strafe(e, dist, dx, dz, spd * 0.4);
   if (gt < u.nextAtk || gt < u.reactUntil || !u.los) return;
   const p3 = u.phase >= 3, p2 = u.phase >= 2;
@@ -3006,8 +3069,8 @@ AI.boss = function (e, dt, dist, dx, dz) {
   if (p2 && gt >= u.chargeAt && dist > 6 && (r < 0.4 || gt >= u.chargeAt + 4)) return bossCharge(e, dx, dz, dist);
   if (u.atkN % 3 === 0 && typeCount('orb') < 2) {                   // Gloom Orb
     startAct(e, 1.0, b => {
-      const d = Math.hypot(camera.position.x - b.position.x, camera.position.z - b.position.z) || 1;
-      const ox = b.position.x + (camera.position.x - b.position.x) / d * 2.2, oz = b.position.z + (camera.position.z - b.position.z) / d * 2.2;
+      const d = Math.hypot(TGT.x - b.position.x, TGT.z - b.position.z) || 1;
+      const ox = b.position.x + (TGT.x - b.position.x) / d * 2.2, oz = b.position.z + (TGT.z - b.position.z) / d * 2.2;
       const o = spawnEnemy('orb', { x: ox, z: oz }, { element: b.userData.element, instant: true });
       o.userData.spawnUntil = gt; o.position.y = 0; sweep(120, 220, 0.4, 'sine', 0.08);
     });
@@ -3019,8 +3082,7 @@ AI.boss = function (e, dt, dist, dx, dz) {
     showBanner('', 'GROUND SLAM - JUMP!');
     startAct(e, tel, b => {
       u.disc.visible = false; fx('ring', b.position.x, 0.1, b.position.z, 0xff5522, R, 0.5, 0.9); sweep(90, 30, 0.5, 'sawtooth', 0.2);
-      const d2 = Math.hypot(camera.position.x - b.position.x, camera.position.z - b.position.z);
-      if (d2 < R && camera.position.y < 2.7 + groundAt(camera.position.x, camera.position.z) && !player.dead) damagePlayer(38 * enemyDmgMult(u.power), u.tier);
+      hurtPlayersNear(b.position.x, b.position.z, R, 38 * enemyDmgMult(u.power), u.tier, 2.7);   // ground slam: anyone standing low enough
     });
   } else if (r < 0.65) {                                            // volley fan
     const h = p3 ? 4 : 3;
@@ -3640,10 +3702,27 @@ function openShop() {
   playTone(520, 0.1, 'sine', 0.06);
 }
 function closeShop() { $('shop-overlay').style.display = 'none'; paused = false; }
+// v11 UL-1: Raise All strip (one tap + confirm) with per-rarity include chips
+let raiseArmed = false;
+function renderRaiseStrip() {
+  const box = $('shop-raise'); if (!box) return; box.innerHTML = '';
+  const plan = raiseAllPlan(), blk = raiseBlocked();
+  const b = ce('button', '', raiseArmed ? 'Tap to confirm: ' + plan.items.length + ' items \u25C6' + fmtN(plan.cost.g) + ' \u2756' + plan.cost.s : 'Raise All' + (plan.items.length ? ' (' + plan.items.length + ')' : '')); b.id = 'raise-all'; b.disabled = blk || !plan.items.length;
+  b.onclick = () => {
+    if (!raiseArmed) { raiseArmed = true; renderRaiseStrip(); setTimeout(() => { if (raiseArmed) { raiseArmed = false; renderRaiseStrip(); } }, 4000); return; }
+    raiseArmed = false; const r = raiseAll();
+    if (r.ok) { toast('Raised ' + r.n + ' item' + (r.n > 1 ? 's' : '') + ' \u25C6' + fmtN(r.cost.g) + ' \u2756' + r.cost.s + (r.left ? ' (' + r.left + ' left: need more materials)' : ''), '#7fe39a'); playTone(560, 0.2, 'triangle', 0.08); }
+    else toast(r.why === 'strike' ? 'Raise between stages' : r.why === 'mats' ? 'Not enough materials' : 'Everything is already at your power', '#f66');
+    renderShop(); if ($('inventory-overlay').style.display === 'flex') renderInventory();
+  };
+  box.appendChild(b);
+  const info = ce('span', 'small', plan.eligible ? plan.eligible + ' below your power' : 'all gear at your power'); info.style.color = '#789'; box.appendChild(info);
+  RARITIES.forEach((r, i) => { const on = (settings.raiseAuto || [])[i] !== false; const c = ce('button', 'chip' + (on ? '' : ' off'), r.name); c.style.color = hex(r.color); c.onclick = () => { settings.raiseAuto = [0, 1, 2, 3].map(k => k === i ? !on : (settings.raiseAuto || [])[k] !== false); saveSettings(); raiseArmed = false; renderRaiseStrip(); }; box.appendChild(c); });
+}
 function renderShop() {
   const grid = $('shop-grid'); grid.innerHTML = '';
-  $('shop-mats').innerHTML = matsHTML();
-  inter.stock.forEach((it, i) => {
+  $('shop-mats').innerHTML = matsHTML(); renderRaiseStrip();
+  ((inter && inter.stock) || []).forEach((it, i) => {
     const cur = getItem(equip[it.slot]);
     const card = ce('div', 'card' + (it.sold ? ' sold' : ''));
     card.style.borderLeftColor = bcol(it);
@@ -3711,7 +3790,25 @@ function interactNearest() {
 }
 
 const _mv = new THREE.Vector3(), _mp = new THREE.Vector3();
-function placeMarker(el, x, y, z, label, dim) {
+const HUD_AVOID = ['pause-btn', 'fullscreen-btn', 'mats', 'ui', 'minimap', 'objhud', 'boss-bar', 'inter-bar', 'prompt-btn', 'joy-base', 'status'];
+let _hudR = [], _hudRt = -1e9, _hudRk = '';
+function hudRects(W, H) {
+  const now = performance.now(), key = W + 'x' + H; if (now - _hudRt < 350 && key === _hudRk) return _hudR; _hudRt = now; _hudRk = key; _hudR = [];
+  const push = e => { if (!e) return; const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') return; const r = e.getBoundingClientRect(); if (r.width > 2 && r.height > 2) _hudR.push([r.left - 4, r.top - 4, r.right + 4, r.bottom + 4]); };
+  for (const id of HUD_AVOID) push(document.getElementById(id));
+  document.querySelectorAll('#btn-container .btn').forEach(push);
+  return _hudR;
+}
+function markerSafeSpot(el, px, py, W, H) {
+  const hw = Math.min(70, (el.offsetWidth || 100) / 2 + 2), hh = (el.offsetHeight || 28) / 2 + 2;
+  const x0 = 6 + hw, x1 = W - 6 - hw, y0 = 6 + hh, y1 = H - 6 - hh; if (x1 <= x0 || y1 <= y0) return [clamp(px, x0, Math.max(x0, x1)), clamp(py, y0, Math.max(y0, y1))];
+  const R = hudRects(W, H), hit = (x, y) => { for (const r of R) if (x + hw > r[0] && x - hw < r[2] && y + hh > r[1] && y - hh < r[3]) return true; return false; };
+  px = clamp(px, x0, x1); py = clamp(py, y0, y1); if (!hit(px, py)) return [px, py];
+  let best = null, bd = 1e12;
+  for (let y = y0; y <= y1; y += 6) for (let x = x0; x <= x1; x += 6) { if (hit(x, y)) continue; const d = (x - px) * (x - px) + (y - py) * (y - py); if (d < bd) { bd = d; best = [x, y]; } }
+  return best || [px, py];
+}
+function placeMarker(el, x, y, z, label, dim, safe) {
   const W = window.innerWidth, H = window.innerHeight;
   _mv.set(x, y, z).applyMatrix4(camera.matrixWorldInverse); const behind = _mv.z > 0;
   _mp.set(x, y, z).project(camera);
@@ -3719,7 +3816,9 @@ function placeMarker(el, x, y, z, label, dim) {
   if (behind) { nx = -nx; ny = -ny; if (Math.abs(nx) < 0.02 && Math.abs(ny) < 0.02) nx = 1; }
   const m = Math.max(Math.abs(nx) / 0.9, Math.abs(ny) / 0.8);
   if (behind || m > 1) { const k = 1 / (m || 0.001); nx *= k; ny *= k; }
-  const px = (nx + 1) / 2 * W, py = (1 - ny) / 2 * H;
+  let px = (nx + 1) / 2 * W, py = (1 - ny) / 2 * H;
+  el._clamped = !!(safe && (behind || m > 1));
+  if (el._clamped) { const q = markerSafeSpot(el, px, py, W, H); px = q[0]; py = q[1]; }   // v11 (L2): a clamped waypoint label is moved off every HUD element (stick, buttons, bars, minimap, objective strip)
   if (el._d !== 'block') { el.style.display = 'block'; el._d = 'block'; }
   el.style.transform = 'translate(' + px.toFixed(0) + 'px,' + py.toFixed(0) + 'px) translate(-50%,-50%)';
   if (el._l !== label) { el.innerHTML = '<i>\u25BC</i>' + label; el._l = label; }
@@ -4379,7 +4478,7 @@ function pickZoneB(a) {
 function clearField(keepOrbs) {
   for (const e of enemies.slice()) removeEnemy(e);
   for (let i = projs.length - 1; i >= 0; i--) removeProj(i);
-  spawnQueue = []; bossQueue = []; spawnHook = null;
+  spawnQueue = []; bossQueue = []; spawnHook = null; if (typeof sdClear === 'function') sdClear();
   if (!keepOrbs) for (let i = orbs.length - 1; i >= 0; i--) { scene.remove(orbs[i].m); orbs.splice(i, 1); }
 }
 function removeResultsProps() {
@@ -4399,7 +4498,7 @@ function startStrike(id, tier, stage, resume) {
   const def = STRIKE_DEFS[id]; if (!def) return false;
   tier = Math.max(1, Math.min(5, tier | 0 || 1)); stage = Math.max(1, Math.min(def.stages, stage | 0 || 1));
   if ($('ms-overlay').style.display === 'flex') closeMissionSelect();
-  $('fail-overlay').style.display = 'none';
+  teardownMission('strike', false);   // v11: nothing from the previous mission (or the Patrol's markers) survives into the new one
   if (patrolLive()) holdPatrol();
   else if (!held) held = { wave, inter: null };
   removeIntermission(); removeStrikeProps(); clearField(false);
@@ -4432,6 +4531,7 @@ function saveActive() {
 function beginStage(n, restart) {
   const S = STRIKE, def = STRIKE_DEFS[S.strikeId];
   S.stage = n; S.stageState = 'intro'; S.stateT = gt;
+  S.enemyPower = strikeEnemyPower(S.tier);   // v11: difficulty follows the player's current Power at each stage start (also on stage restart / retry / resume)
   if (qaEmit) qaEmit('stageStart', { stage: n, restart: !!restart });
   removeZone(S.zone); S.zone = null; S.zoneIdx = 0; S.zoneCount = 0; S.goalLeft = 0; S.specials = []; spawnHook = null;
   spawnQueue = []; bossQueue = [];
@@ -4472,7 +4572,7 @@ function beginActive() {
 }
 function routAll() {
   for (const e of enemies) { const u = e.userData; if (u.type === 'boss') continue; u.routed = true; u.routAt = gt + rand(0, 2); u.invuln = false; }
-  spawnQueue = []; bossQueue = [];
+  spawnQueue = []; bossQueue = []; if (typeof sdClear === 'function') sdClear();
   for (let i = projs.length - 1; i >= 0; i--) if (projs[i].team === 'e') removeProj(i);
 }
 function routTick() {
@@ -4492,7 +4592,7 @@ function stageClear() {
 }
 function nextStage() { beginStage(STRIKE.stage + 1, false); }
 function restartStage(why) {
-  const S = STRIKE;
+  const S = STRIKE; teardownMission(why || 'restart', true);
   clearField(true); removeZone(S.zone); S.zone = null;
   camera.position.set(S.cp.x, 1.6 + groundAt(S.cp.x, S.cp.z), S.cp.z); player.velocity.set(0, 0, 0); if (LV.on) { LV.lastGood = null; LV.cur = -1; }
   player.dead = false; player.health = player.maxHealth; player.shield = player.maxShield; player.invulnUntil = gt + 4;
@@ -4648,8 +4748,26 @@ const _openShopBtn = $('prompt-btn').onclick;
 $('prompt-btn').onclick = () => { if (inStrike() && STRIKE.stageState === 'results') { resultsLeave(); leaveStrike(); } else { $('prompt-btn').textContent = 'OPEN SHOP'; _openShopBtn(); } };
 
 // ---------- leaving ----------
-function leaveStrike() {            // strike over (retreat / results exit / abandon): back to Mission Select with the Patrol still held
+// v11 (W1): ONE teardown for everything a mission leaves on screen / in timers. Called on every mode switch (Patrol<->Strike, Strike->Strike), abandon, retreat, retry and results exit.
+// keepSession=true (stage retry / restart) keeps the Strike running: it only clears the transient stage state.
+function lvWpHide() { LV.wp = null; const el = LV.wpEl; if (el && el._d !== 'none') { el.style.display = 'none'; el._d = 'none'; } }
+function teardownMission(why, keepSession) {
   const S = STRIKE;
+  lvWpHide();                                                    // waypoint (EXIT / OBJECTIVE / RELAY / GATE) + its minimap ring
+  try { removeZone(S.zone); } catch (e) {} S.zone = null; S.zoneIdx = 0; S.zoneCount = 0; S.goalLeft = 0; S.specials = [];   // objective / exit state
+  spawnQueue = []; bossQueue = []; spawnHook = null; if (typeof sdClear === 'function') sdClear();   // spawn timers + telegraphing doors
+  cancelPatrolToast();                                           // a pending Patrol toast re-arms for the mode we are entering
+  $('fail-overlay').style.display = 'none';
+  if (!keepSession) {
+    removeResultsProps();
+    $('objhud').style.display = 'none'; $('objhud')._d = 'none'; $('revives').style.display = 'none'; $('boss-bar').style.display = 'none';
+    document.body.classList.remove('strike', 'strikeboss');
+    S.stageState = 'over'; clearTimeout(bannerTimer); const bn = $('banner'); if (bn) bn.style.display = 'none';   // stale stage banner
+  }
+  if (qaEmit) qaEmit('teardown', { why: why || '', keep: !!keepSession });
+}
+function leaveStrike() {            // strike over (retreat / results exit / abandon): back to Mission Select with the Patrol still held
+  const S = STRIKE; teardownMission('leave');
   removeStrikeProps(); clearField(false);
   if (LV.on) { levelDispose(); setArenaForWave(held ? held.wave : wave); camera.position.set(0, 1.6, 12); player.velocity.set(0, 0, 0); }
   player.dead = false; player.health = player.maxHealth; player.shield = player.maxShield;
@@ -4661,20 +4779,21 @@ function leaveStrike() {            // strike over (retreat / results exit / aba
   openMissionSelect();
 }
 function abandonStrike() { prog.active = null; STRIKE.pendG = 0; STRIKE.pendS = 0; leaveStrike(); }
-let patrolToastPending = false;
+let patrolToastPending = false, patrolToastTimer = null;
+function cancelPatrolToast() { clearTimeout(patrolToastTimer); patrolToastPending = false; }
 function patrolToastLater(ms) {
   if (patrolToastPending || prog.patrolToastShown) return; patrolToastPending = true;
   const tryShow = () => {
     if (prog.patrolToastShown || activity !== ACTIVITIES.waves) { patrolToastPending = false; return; }
     const menu = ['pause-overlay', 'settings-overlay', 'ms-overlay', 'inventory-overlay', 'shop-overlay', 'save-overlay'].some(id => { const e = document.getElementById(id); return e && e.style.display === 'flex'; });
-    if (paused || menu) { setTimeout(tryShow, 1000); return; }
+    if (paused || menu) { patrolToastTimer = setTimeout(tryShow, 1000); return; }
     patrolToastPending = false; prog.patrolToastShown = true; saveSoon();
     toast('Patrol rewards are reduced \u2014 Strikes pay more.', '#ffd45a');
   };
-  setTimeout(tryShow, ms);
+  patrolToastTimer = setTimeout(tryShow, ms);
 }
 function resumePatrol() {
-  const h = held; held = null;
+  const h = held; held = null; teardownMission('patrol');
   removeStrikeProps(); $('fail-overlay').style.display = 'none'; document.body.classList.remove('strike', 'strikeboss');
   activity = ACTIVITIES.waves; STRIKE.stageState = 'over';
   clearField(false);
@@ -4820,9 +4939,9 @@ function renderMissionSelect() {
     const b = document.createElement('button'); b.className = 'go'; b.id = 'ms-resume-go'; b.type = 'button'; b.textContent = 'RESUME'; b.onclick = () => startStrike(a.id, a.tier, a.stage, a); c.appendChild(b);
   }
   {
-    const E = tierRec(1), chip = powerChip(E), c = card('ms-card-outpost', '');
+    const E = strikeEnemyPower(1), chip = powerChip(E), c = card('ms-card-outpost', '');
     c.innerHTML = '<h3>' + def.name + '</h3><div class="mtag">STRIKE \u2022 ' + def.tag + '</div><div>' + def.stages + ' stages \u2022 ~' + def.estMin + ' min</div>' +
-      '<div>Recommended power <b>' + E + '</b></div><span class="chip ' + chip.cls + '" id="ms-chip" data-cls="' + chip.cls + '">PWR ' + player.power + ' / REC ' + E + ' \u2022 ' + chip.label + '</span>' +
+      '<div>Enemy power <b>' + E + '</b> <small>(tracks your Power; boss +' + TUNING.strikePower.boss + ')</small></div><span class="chip ' + chip.cls + '" id="ms-chip" data-cls="' + chip.cls + '">PWR ' + player.power + ' / REC ' + E + ' \u2022 ' + chip.label + '</span>' +
       '<div class="mul" id="ms-mul">you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '</div>' +
       '<div>Rewards: 4 gear drops, \u25C6 450  \u2756 3</div>' + (PROCGEN ? '<div class="drops">Drops: ' + STRIKE_DROPS_LINE + '</div>' : '') + '<div>Best time: ' + (sp.bestTimeSec ? fmtTime(sp.bestTimeSec) : '--') + ' \u2022 Clears: ' + sp.clears + '</div>' +
       (msConfirm && chip.cls === 'red' ? '<div class="warnline" id="ms-confirm">Underpowered: you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '. Launch anyway?</div>' : '') + '<div class="sp"></div>';
@@ -4853,6 +4972,20 @@ $('missions-btn').onclick = () => {
   }
   $('pause-overlay').style.display = 'none'; openMissionSelect();
 };
+// v11 (W1): leaving a Strike must ALWAYS be possible - Pause and Settings each get an in-page two-tap "Leave Strike" (no native confirm(), which some mobile browsers suppress)
+let leaveArm = 0;
+function syncLeaveButtons() {
+  const on = inStrike() && STRIKE.stageState !== 'over', armed = on && leaveArm > Date.now();
+  for (const id of ['leave-strike-btn', 'leave-strike-set']) { const b = $(id); if (!b) continue; if (id === 'leave-strike-set') b.parentElement.style.display = on ? '' : 'none'; else b.style.display = on ? '' : 'none'; b.textContent = armed ? 'Tap again to leave the Strike' : (id === 'leave-strike-set' ? 'Leave Strike (abandon, lose its rewards)' : 'Leave Strike'); }
+}
+function leaveStrikeUI() {
+  if (!inStrike() || STRIKE.stageState === 'over') return;
+  if (leaveArm <= Date.now()) { leaveArm = Date.now() + 4000; syncLeaveButtons(); setTimeout(syncLeaveButtons, 4100); return; }
+  leaveArm = 0; $('pause-overlay').style.display = 'none'; $('settings-overlay').style.display = 'none'; msFromSettings = false;
+  if (STRIKE.stageState === 'results') { resultsLeave(); leaveStrike(); } else abandonStrike();
+  syncLeaveButtons();
+}
+$('leave-strike-btn').onclick = leaveStrikeUI; $('leave-strike-set').onclick = leaveStrikeUI;
 
 // ---------- debug / QA hooks (only with ?debug=1) ----------
 if (/[?&](debug|qa)=1/.test(location.search)) {
@@ -5182,6 +5315,7 @@ for (const id of RY_ORDER) {
   }
   PG_TILES[id] = { id, name: T.name, role: T.role, wc: T.wc, dc: T.dc, rots };
 }
+const PG_ANTE_PORTAL = 0;   // v11 (B1): index of the ante door that becomes the arena portal (lvBuild); the ante is never entered through it
 const PG_ROLE_TILES = { corridor: ['ry_cor_2', 'ry_cor_3', 'ry_cor_l'], junction: ['ry_jct'], arena: ['ry_arena_m', 'ry_arena_w'], objective: ['ry_obj_l'], objective2: ['ry_obj_g'], mini: ['ry_mini_a'], ante: ['ry_ante'], cache: ['ry_cache'], spawn: ['ry_spawn'] };
 
 // ---- beat list for Strike 1 (3 segments + antechamber): traverse -> objective -> mini-boss room ----
@@ -5240,6 +5374,7 @@ function pgPlaceChain(beats, r, budget) {
     for (const [pd, di] of pgShuffle(pds, r)) {
       for (const c of pgCandidates(prev, pd, tiles, r)) {
         if (nodes > budget) return false;
+        if (b.role === 'ante' && c.ei === PG_ANTE_PORTAL) continue;   // v11 (B1): the ante's door 0 is the arena portal: the previous room must enter through the OTHER door, or the portal lock box seals the stage 3 exit
         if (prev.tile === c.tid && PG_TILES[c.tid].role !== 'corridor') continue;
         if (prev.tile === c.tid && c.tid !== 'ry_cor_l' && PG_TILES[c.tid].role === 'corridor' && r() < 0.8) continue;   // avoid same corridor twice in a row (mostly)
         const nr = mk(b, c.tid, c.k, c.x, c.z);
@@ -5300,22 +5435,23 @@ function pgFinish(rooms, seed, how) {
   return { seed, how, rooms, doors, bbox: { x0: bb.x0 + sx, x1: bb.x1 + sx, z0: bb.z0 + sz, z1: bb.z1 + sz } };
 }
 // the hand-listed fallback chain (found once by the generator and frozen; used if every attempt fails). [tile, rot, x, z] with the first tile at the origin.
+// v11 (B1): re-frozen from a generated layout whose ante is entered through its second door (the old chain entered through door 0 = the arena portal)
 const PG_FALLBACK = [
-  { t: 'ry_spawn', k: 3, x: 0, z: 0, p: undefined, pd: undefined, e: undefined, seg: 1, kind: 'S', brole: 'spawn' },
-  { t: 'ry_cor_3', k: 1, x: 12, z: 4, p: 0, pd: 0, e: 1, seg: 1, kind: 'T', brole: 'corridor' },
-  { t: 'ry_arena_m', k: 3, x: 24, z: -4, p: 1, pd: 0, e: 0, seg: 1, kind: 'O', brole: 'arena' },
-  { t: 'ry_mini_a', k: 0, x: 24, z: -28, p: 2, pd: 2, e: 0, seg: 1, kind: 'M', brole: 'mini' },
-  { t: 'ry_cor_3', k: 2, x: 32, z: -40, p: 3, pd: 1, e: 0, seg: 2, kind: 'T', brole: 'corridor' },
-  { t: 'ry_obj_l', k: 0, x: 20, z: -64, p: 4, pd: 1, e: 1, seg: 2, kind: 'O', brole: 'objective', zone: 1 },
-  { t: 'ry_mini_a', k: 1, x: 44, z: -60, p: 5, pd: 2, e: 0, seg: 2, kind: 'M', brole: 'mini' },
-  { t: 'ry_cor_2', k: 3, x: 68, z: -52, p: 6, pd: 1, e: 0, seg: 3, kind: 'T', brole: 'corridor' },
-  { t: 'ry_jct', k: 3, x: 76, z: -56, p: 7, pd: 1, e: 0, seg: 3, kind: 'T', brole: 'junction' },
-  { t: 'ry_obj_l', k: 2, x: 72, z: -44, p: 8, pd: 3, e: 1, seg: 3, kind: 'O', brole: 'objective', zone: 1 },
-  { t: 'ry_obj_g', k: 0, x: 48, z: -40, p: 9, pd: 2, e: 1, seg: 3, kind: 'O', brole: 'objective2', zone: 2 },
-  { t: 'ry_mini_a', k: 0, x: 52, z: -20, p: 10, pd: 2, e: 1, seg: 3, kind: 'M', brole: 'mini' },
-  { t: 'ry_ante', k: 0, x: 52, z: 4, p: 11, pd: 0, e: 0, seg: 4, kind: 'A', brole: 'ante' },
-  { t: 'ry_cache', k: 0, x: 24, z: -76, p: 5, pd: 0, e: 0, seg: 2, kind: 'C', brole: 'cache', branch: true },
-  { t: 'ry_cache', k: 0, x: 76, z: -68, p: 8, pd: 1, e: 0, seg: 3, kind: 'C', brole: 'cache', branch: true }
+  { t: 'ry_spawn', k: 2, x: 0, z: 0, p: undefined, pd: undefined, e: undefined, seg: 1, kind: 'S', brole: 'spawn' },
+  { t: 'ry_jct', k: 1, x: 0, z: -12, p: 0, pd: 0, e: 1, seg: 1, kind: 'T', brole: 'junction' },
+  { t: 'ry_cor_2', k: 0, x: 4, z: -20, p: 1, pd: 3, e: 1, seg: 1, kind: 'T', brole: 'corridor' },
+  { t: 'ry_arena_m', k: 0, x: -4, z: -40, p: 2, pd: 0, e: 1, seg: 1, kind: 'O', brole: 'arena' },
+  { t: 'ry_mini_a', k: 1, x: 16, z: -40, p: 3, pd: 2, e: 0, seg: 1, kind: 'M', brole: 'mini' },
+  { t: 'ry_cor_2', k: 1, x: 40, z: -32, p: 4, pd: 1, e: 1, seg: 2, kind: 'T', brole: 'corridor' },
+  { t: 'ry_obj_l', k: 1, x: 48, z: -44, p: 5, pd: 0, e: 1, seg: 2, kind: 'O', brole: 'objective', zone: 1 },
+  { t: 'ry_mini_a', k: 2, x: 48, z: -20, p: 6, pd: 2, e: 0, seg: 2, kind: 'M', brole: 'mini' },
+  { t: 'ry_cor_2', k: 2, x: 56, z: 4, p: 7, pd: 1, e: 1, seg: 3, kind: 'T', brole: 'corridor' },
+  { t: 'ry_obj_l', k: 2, x: 48, z: 12, p: 8, pd: 0, e: 1, seg: 3, kind: 'O', brole: 'objective', zone: 1 },
+  { t: 'ry_obj_g', k: 2, x: 24, z: 12, p: 9, pd: 2, e: 0, seg: 3, kind: 'O', brole: 'objective2', zone: 2 },
+  { t: 'ry_mini_a', k: 3, x: 0, z: 12, p: 10, pd: 1, e: 0, seg: 3, kind: 'M', brole: 'mini' },
+  { t: 'ry_ante', k: 3, x: -12, z: 16, p: 11, pd: 1, e: 1, seg: 4, kind: 'A', brole: 'ante' },
+  { t: 'ry_cache', k: 1, x: 12, z: -12, p: 1, pd: 0, e: 0, seg: 1, kind: 'C', brole: 'cache', branch: true },
+  { t: 'ry_cache', k: 0, x: 0, z: -52, p: 3, pd: 0, e: 0, seg: 1, kind: 'C', brole: 'cache', branch: true }
 ];
 function genLevel(seed, opt) {
   opt = opt || {}; const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -5355,6 +5491,13 @@ function pgValidate(L) {
   if (nMini !== 3 || nExit !== 3 || nGate !== 3) err.push('V4 beats ' + nMini + '/' + nExit + '/' + nGate);
   if (main[main.length - 1].role !== 'ante') err.push('V4 ante not last');
   if (main.length < 13 || R.length - main.length > 2) err.push('V4 room count ' + main.length);
+  // V11 (B1) the arena portal door (ante door PG_ANTE_PORTAL) must not be the door the ante is entered through, and no door may overlap it
+  { const an = R.find(r => r.role === 'ante');
+    if (an) {
+      const aD = PG_TILES[an.tile].rots[an.rot].doors, pw = pgDoorWorld(an, aD[PG_ANTE_PORTAL]);
+      if (an.entry === PG_ANTE_PORTAL) err.push('V11 ante entered through the portal door');
+      for (const d of L.doors) { if (d.a !== an.i && d.b !== an.i) continue; const di = d.b === an.i ? d.bdi : d.pdi; if (di === PG_ANTE_PORTAL) { err.push('V11 door ' + d.i + ' on the portal door'); continue; } const w = pgDoorWorld(an, aD[di]); if (w.side === pw.side && w.a < pw.b - 0.01 && w.b > pw.a + 0.01) err.push('V11 door ' + d.i + ' overlaps the portal'); }
+    } }
   // V5 bounds
   const bb = L.bbox; if (bb.x1 - bb.x0 > PG_BBOX + 0.01 || bb.z1 - bb.z0 > PG_BBOX + 0.01) err.push('V5 bbox');
   // V6 every room has its markers (arena: >=2 idle + >=3 door markers; mini: mini marker; objective: zone)
@@ -5525,7 +5668,7 @@ function lvBuild(seed, opts) {
   const t0 = performance.now();
   if (LV.on) levelDispose(true);
   const L = genLevel(seed, opts);
-  const ante = L.rooms.find(r => r.role === 'ante'); const aT = PG_TILES[ante.tile].rots[ante.rot]; ante.portalDoors = [aT.doors[0]];
+  const ante = L.rooms.find(r => r.role === 'ante'); const aT = PG_TILES[ante.tile].rots[ante.rot]; ante.portalDoors = [aT.doors[PG_ANTE_PORTAL]];
   const wd = pgWorldData(L);
   LV.seedStr = String(seed); LV.L = L; LV.wd = wd; LV.geos = []; LV.mats = []; LV.doors = []; LV.rooms = []; LV.visited = new Set(); LV.cur = -1; LV.lastGood = null;
   disposeArena(); arenaIdx = -1;
@@ -5540,7 +5683,7 @@ function lvBuild(seed, opts) {
   boxes.length = 0; for (const b of wd.boxes) boxes.push(b);
   for (const d of L.doors) LV.doors.push(lvMakeDoor(d, L));
   // the ante's arena portal: a grate (lock box) until the boss arena is ready
-  { const pd = aT.doors[0], w = pgDoorWorld(ante, pd), horiz = w.side === 'N' || w.side === 'S', cx = horiz ? (w.a + w.b) / 2 : w.at, cz = horiz ? w.at : (w.a + w.b) / 2;
+  { const pd = aT.doors[PG_ANTE_PORTAL], w = pgDoorWorld(ante, pd), horiz = w.side === 'N' || w.side === 'S', cx = horiz ? (w.a + w.b) / 2 : w.at, cz = horiz ? w.at : (w.a + w.b) / 2;
     const fake = { i: 90, a: ante.i, b: ante.i, cx, cz, horiz, width: w.b - w.a, lock: 'portal', side: w.side };
     const o = lvMakeDoor(fake, L); o.dir = horiz ? [0, w.side === 'S' ? 1 : -1] : [w.side === 'E' ? 1 : -1, 0]; o.portal = true; LV.portal = o; LV.doors.push(o);
     // lit header + frame for the portal (wide door)
@@ -5569,7 +5712,9 @@ function lvBuild(seed, opts) {
   return L;
 }
 function levelDispose(keepWorld) {
+  lvWpHide();   // v11 (W1): never leave a stale waypoint marker behind
   if (!LV.on && !LV.group) return;
+  if (typeof sdDispose === 'function') sdDispose();
   if (LV.group) { scene.remove(LV.group); while (LV.group.children.length) LV.group.remove(LV.group.children[0]); }
   for (const g of LV.geos) g.dispose(); for (const m of LV.mats) m.dispose();
   LV.geos = []; LV.mats = []; LV.group = null; LV.rooms = []; LV.doors = []; LV.L = null; LV.wd = null; LV.portal = null; LV.mast = null; LV.cur = -1;
@@ -5838,6 +5983,7 @@ function lvSwapToArena(keepPlayer) {
   mmSetFrame(); mmT = 1; LV.cur = -1;
   camera.position.set(px, 1.6, pz); yaw = yw; player.velocity.set(0, 0, 0);
   rebuildSafeSpawns();
+  if (typeof sdBuildBoss === 'function') sdBuildBoss();
   LV.swapMs = performance.now() - t0; return true;
 }
 function lvSetDoorQuiet(d, locked) {   // lvSetDoor without the click
@@ -6117,20 +6263,27 @@ function lvBeginActive() {
   const types = S.stage === 1 ? ['dreg', 'dreg'] : S.stage === 2 ? ['dreg', 'vandal'] : ['vandal', 'dreg'];
   for (const ri of sg.T) { const r = LV.rooms[ri], h = (r.m.hall || []).slice(0, 2); h.forEach((p, i) => { const e = spawnEnemy(types[i % 2], { x: p[0], z: p[1] }, { strike: true, idle: true, room: ri, instant: true }); e.scale.setScalar(1); }); }
   for (const ci of sg.caches) { const r = LV.rooms[ci]; if (r.m.hall && !LV.caches[ci].guarded) { LV.caches[ci].guarded = true; const p = r.m.hall[0]; const e = spawnEnemy('dreg', { x: p[0], z: p[1] }, { strike: true, idle: true, room: ci, instant: true }); e.scale.setScalar(1); } }
+  lvGarrison();
   if (LV.cur >= 0 && F.objRooms.includes(LV.cur)) lvStartObjective();
+}
+// v11: the objective rooms' sentries stand there from the start of the stage (nothing pops in on the objective when you walk in); reinforcements use the spawn doors
+function lvGarrison() {
+  const S = STRIKE, F = LV.flow; if (!F || F.garrisoned) return; F.garrisoned = true;
+  const place = (ri, types) => lvSentryPoints(ri, types.length).forEach((p, i) => { const e = spawnEnemy(types[i], { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
+  if (S.stage === 1) place(F.objRooms[0], ['dreg', 'dreg', 'vandal', 'captain']);
+  else { place(F.objRooms[0], shuffled(mkList({ dreg: 3, vandal: 2 }))); if (F.objRooms.length > 1) place(F.objRooms[1], ['dreg', 'vandal', 'vandal']); }
 }
 function lvIntroTick() { const S = STRIKE; if (S.stage >= 4) return LV.introDone; return gt >= S.stateT + 1.2; }
 function lvSentryPoints(ri, n) {
   const r = LV.rooms[ri], pts = [];
   for (const k of ['idle', 'hall', 'door']) for (const p of (r.m[k] || [])) pts.push(p);
-  return pts.slice(0, n);
+  const z = r.zone, off = z ? pts.filter(p => Math.hypot(p[0] - z[0], p[1] - z[1]) >= 6) : pts;   // v11: sentries never stand on the objective ring
+  return (off.length >= n ? off : pts).slice(0, n);
 }
 function lvStartObjective() {
   const S = STRIKE, F = LV.flow; if (F.objStarted || S.stageState !== 'active') return;
   F.objStarted = true; F.objT0 = gt; LV.spawnRooms = [F.objRooms[0]]; const ri = F.objRooms[0];
   if (S.stage === 1) {
-    const pts = lvSentryPoints(ri, 4), types = ['dreg', 'dreg', 'vandal', 'captain'];
-    pts.forEach((p, i) => { const e = spawnEnemy(types[i], { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
     spawnQueue = shuffled(mkList({ dreg: 4, vandal: 2 })); S.objTotal = 10; S.limit = 0;
     showBanner('CLEAR THE COURT', 'Eliminate all hostiles'); sweep(300, 600, 0.3, 'square', 0.05);
   } else {
@@ -6140,8 +6293,6 @@ function lvStartObjective() {
     S.limit = two ? 210 : 150; S.reinfEvery = two ? 14 : 12; S.reinfN = two ? 4 : 3; S.nextReinf = gt + S.reinfEvery;
     S.specials = two ? [{ t: 60, type: 'knight' }, { t: 120, type: 'captain' }] : [{ t: 40, type: 'captain' }, { t: 100, type: 'captain' }];
     spawnHook = zoneSpawnHook;
-    const types = shuffled(mkList(two ? { dreg: 3, vandal: 2 } : { dreg: 3, vandal: 2 }));
-    lvSentryPoints(ri, types.length).forEach((p, i) => { const e = spawnEnemy(types[i], { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
     showBanner(two ? 'SECURE BOTH RELAYS' : 'HOLD THE RELAY', 'Stand in the ring until it is secured'); sweep(300, 600, 0.3, 'square', 0.05);
   }
   if (qaEmit) qaEmit('objective', { stage: S.stage, state: 'start' });
@@ -6153,7 +6304,6 @@ function pickObjectiveSpot(idx) { if (LV.on && LV.flow && LV.flow.objRooms) retu
 function lvZoneAdvance() {   // zone 1 of 2 secured: relay 2 appears in the second objective room, with its own sentries
   const F = LV.flow, S = STRIKE; if (F.objRooms.length < 2) return;
   LV.spawnRooms = [F.objRooms[1]]; const ri = F.objRooms[1];
-  lvSentryPoints(ri, 3).forEach((p, i) => { const e = spawnEnemy(i ? 'vandal' : 'dreg', { x: p[0], z: p[1] }, { strike: true, idle: true, obj: true, room: ri, instant: true }); e.scale.setScalar(1); });
 }
 function lvObjectiveDone() {
   const S = STRIKE, F = LV.flow; if (F.objDone) return;
@@ -6170,7 +6320,7 @@ function lvSpawnMini() {
   const u = e.userData; u.face = Math.atan2(camera.position.x - e.position.x, camera.position.z - e.position.z); u.maxShieldInit = u.maxShield; u.moreAt = B.more ? 0.5 : -1; u.seg = S.stage; F.mini = e;
   LV.spawnRooms = [r.i];
   lvSpawnSquires(B.squires);
-  if (B.mk) { const p = r.m.hall[0]; const m = spawnEnemy('sniper', { x: p[0], z: p[1] }, { strike: true, room: r.i, instant: false }); m.userData.squire = true; }
+  if (B.mk) sdDirect('sniper', { strike: true, room: r.i }, m => { m.userData.squire = true; });
   // front plate indicator
   const plate = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.3, 0.14), new THREE.MeshBasicMaterial({ color: 0x66ddff, transparent: true, opacity: 0.38, depthWrite: false }));
   plate.position.set(0, 1.5, 0.95); plate.raycast = noopRaycast; e.add(plate); u.plate = plate;
@@ -6178,8 +6328,8 @@ function lvSpawnMini() {
   if (qaEmit) qaEmit('mini', { stage: S.stage, name: B.name });
 }
 function lvSpawnSquires(n) {
-  const r = LV.rooms[LV.flow.sg.M], pts = (r.m.door || []).concat(r.m.hall || []);
-  for (let i = 0; i < n; i++) { const p = pts[(i + (LV.flow.wave2 ? 2 : 0)) % pts.length]; const e = spawnEnemy('dreg', { x: p[0], z: p[1] }, { strike: true, room: r.i }); e.userData.squire = true; }
+  const r = LV.rooms[LV.flow.sg.M];
+  for (let i = 0; i < n; i++) sdDirect('dreg', { strike: true, room: r.i }, e => { e.userData.squire = true; });   // v11: squires file out of the hall's spawn doors
 }
 // plate maths (hooks from p3.js dealDamage / shieldBroken and p4.js updateEnemy)
 function miniPlateMult(e) {
@@ -6211,7 +6361,7 @@ function lvMiniKilled(e, x, z) {
 }
 // ---------------- per-frame ----------------
 function lvTick(dt) {
-  LV.tickT += dt; lvAnteTick(dt);
+  LV.tickT += dt; sdTick(dt); lvAnteTick(dt);
   if (!LV.boss) {
     if (LV.tickT > 0.1) { LV.tickT = 0; lvCull(); lvPlaceEnemies(); }
     lvKeepIn();
@@ -6237,7 +6387,7 @@ function lvActiveTick(dt) {
     if (S.stage === 1) {
       pumpSpawns(8, stageOpts);
       let alive = 0; for (const e of enemies) if (e.userData.obj) alive++;
-      if (!spawnQueue.length && alive === 0) lvObjectiveDone();
+      if (!spawnQueue.length && alive === 0 && !sdPendingCount()) lvObjectiveDone();
     } else {
       const t = gt - S.activeT0;
       if (gt >= S.nextReinf) { S.nextReinf += S.reinfEvery; for (let i = 0; i < S.reinfN; i++) spawnQueue.push(Math.random() < 0.5 ? 'dreg' : 'vandal'); if (!S.reinfDone) { S.reinfDone = true; S.goalLeft = 4; } }
@@ -6269,7 +6419,7 @@ function lvHudInfo() {
   if (S.stageState === 'intro') return { title, pct: 0, st: 'GET READY', tm: '', red: false };
   if (F.sub === 'travel') st = 'REACH THE OBJECTIVE';
   else if (F.sub === 'obj') {
-    if (S.stage === 1) { let alive = 0; for (const e of enemies) if (e.userData.obj) alive++; const left = spawnQueue.length + alive; pct = (10 - left) * 10; st = left + ' HOSTILES'; }
+    if (S.stage === 1) { let alive = 0; for (const e of enemies) if (e.userData.obj) alive++; const left = spawnQueue.length + alive + sdPendingCount(); pct = (10 - left) * 10; st = left + ' HOSTILES'; }
     else { const zn = S.zone; if (zn) { title = S.zoneCount > 1 ? 'RELAY ' + S.zoneIdx + '/2' : 'HOLD THE RELAY'; pct = zn.p; st = zn.status; } const left = S.limit - (gt - S.activeT0); tm = fmtTime(left); red = left < 30; }
   } else if (F.sub === 'mini') { st = 'ENTER THE GATE'; pct = 100; }
   else if (F.sub === 'fight' && F.mini && !F.mini.userData.dead) { const u = F.mini.userData; title = BULWARK[S.stage].name.toUpperCase(); pct = Math.round(100 * (u.hp + u.shield) / (u.maxHp + u.maxShield)); st = u.shield > 0 ? 'PLATE UP \u2022 FLANK IT' : (gt < u.staggerUntil ? 'STAGGERED' : 'PLATE DOWN'); }
@@ -6282,10 +6432,10 @@ function lvWpTarget() {
   else if (S.stageState === 'clear' || F.sub === 'done') { const d = LV.doors[F.sg.exit]; goal = d.a; label = 'EXIT'; pt = { x: d.cx, z: d.cz }; if (LV.cur === d.a) return { x: d.cx, z: d.cz, label, door: true }; }
   else if (F.sub === 'travel') { goal = F.objRooms[0]; label = 'OBJECTIVE'; const r = LV.rooms[goal]; pt = r.zone ? { x: r.zone[0], z: r.zone[1] } : { x: r.cx, z: r.cz }; }
   else if (F.sub === 'obj') { if (S.zone && !S.zone.done) { goal = lvRoomAt(S.zone.x, S.zone.z); label = 'RELAY'; pt = { x: S.zone.x, z: S.zone.z }; } else return null; }
-  else if (F.sub === 'mini') { goal = F.sg.M; label = 'GATE'; const g = LV.doors[F.sg.gate]; pt = lvDoorPoint(g, 4); }
+  else if (F.sub === 'mini') { if (F.miniSpawned) return null; goal = F.sg.M; label = 'GATE'; const g = LV.doors[F.sg.gate]; pt = lvDoorPoint(g, 4); }
   else return null;
   if (goal < 0) return null;
-  if (LV.cur === goal || LV.cur < 0) return Math.hypot(camera.position.x - pt.x, camera.position.z - pt.z) < 7 ? null : { x: pt.x, z: pt.z, label };
+  if (LV.cur === goal || LV.cur < 0) return Math.hypot(camera.position.x - pt.x, camera.position.z - pt.z) < (label === 'GATE' ? 1.2 : 7) ? null : { x: pt.x, z: pt.z, label };   // v11 (L1): the gate marker stays until the mini-boss actually appears
   // BFS over the room graph: first door on the route
   const prev = new Array(LV.rooms.length).fill(null); prev[LV.cur] = [-1, -1]; const q = [LV.cur];
   while (q.length) { const c = q.shift(); if (c === goal) break; for (const [n, di] of LV.rooms[c].nb) if (!prev[n]) { prev[n] = [c, di]; q.push(n); } }
@@ -6297,7 +6447,7 @@ function lvWaypointTick() {
   if (!LV.wpEl) { const el = document.createElement('div'); el.className = 'mk'; el.style.color = '#ffa040'; $('markers').appendChild(el); LV.wpEl = el; }
   const el = LV.wpEl, S = STRIKE, t = (inStrike() && !paused) ? lvWpTarget() : null; LV.wp = t;
   if (!t) { if (el._d !== 'none') { el.style.display = 'none'; el._d = 'none'; } return; }
-  const d = Math.hypot(camera.position.x - t.x, camera.position.z - t.z); placeMarker(el, t.x, t.door ? 3.0 : 3.5, t.z, t.label + ' ' + Math.round(d) + 'm', true);
+  const d = Math.hypot(camera.position.x - t.x, camera.position.z - t.z); placeMarker(el, t.x, t.door ? 3.0 : 3.5, t.z, t.label + ' ' + Math.round(d) + 'm', true, true);
 }
 function lvMmExtras(g) {
   if (!LV.on || LV.boss) { if (LV.boss && typeof lvMmBossExtras === 'function') lvMmBossExtras(g); return; }
@@ -6337,6 +6487,352 @@ if (window.DFPS) Object.assign(window.DFPS, {
   perf: n => new Promise(res => { const a = []; let last = performance.now(), c = 0, maxCalls = 0; const f = () => { const t = performance.now(); a.push(t - last); last = t; maxCalls = Math.max(maxCalls, renderer.info.render.calls); if (++c < (n || 120)) requestAnimationFrame(f); else { const s = a.slice(1).sort((x, y) => x - y); res({ n: s.length, avg: s.reduce((x, y) => x + y, 0) / s.length, p95: s[Math.floor(s.length * 0.95)], max: s[s.length - 1], maxCalls, lights: scene.children.filter(o => o.isLight).length, pointLights: scene.children.filter(o => o.isPointLight).length }); } }; requestAnimationFrame(f); }),
   loot: { swap: (it, src) => strikeLootSwap(it, src), dbg: STRIKE_LOOT_DBG, entries: () => STRIKE_LOOT.fallen_outpost, dry: n => { if (n !== undefined) LV.strikeDry = n; return LV.strikeDry; } }
 });
+// =====================================================================
+//  v11  SPAWN DOORS  — dark recessed hatches / doorways that enemies emerge from (replaces "pop in at a marker")
+//  Every combat / objective / mini-boss room gets 2-4 hatches (planned from the seed, away from real doors, cover and the objective ring).
+//  The boss arena uses its 4 add doorways. A spawn: pick a door that is >= minDist from the player AND the objective and outside the view
+//  frustum  ->  the hatch glows (telegraph)  ->  the panel slides open and the enemy walks out  ->  it paths in.
+//  If no door qualifies the spawn is HELD (never popped in view); the rules relax in tiers only after a wait (counted in SD.stats).
+// =====================================================================
+const SD = { ready: false, boss: false, rooms: {}, all: [], pending: [], direct: [], heldSince: -1, pool: [], stats: null, log: [] };
+function sdResetStats() { SD.stats = { requests: 0, spawned: 0, byTier: { 1: 0, 2: 0, 3: 0, 4: 0 }, held: 0, switched: 0, minDist: 1e9, inViewAtSpawn: 0, nearAtSpawn: 0, nearObjAtSpawn: 0, fallback: 0, boss: 0 }; SD.log.length = 0; }
+sdResetStats();
+const sdCfg = () => TUNING.spawnDoor;
+
+// ---- planner (pure: no THREE; node-testable) ----
+function sdPlanRoom(rm, info, L, rng) {
+  const cfg = (typeof TUNING !== 'undefined' && TUNING.spawnDoor) || { hw: 1.35, mouth: 2.0, counts: { arena: 3, objective: 3, objective2: 3, mini: 4 } };
+  const t = PG_WALL, HW = cfg.hw, R = PG_TILES[rm.tile].rots[rm.rot], gaps = { N: [], E: [], S: [], W: [] };
+  for (const d of L.doors) { if (d.a === rm.i) { const dd = R.doors[d.pdi]; gaps[dd.side].push([dd.c0, dd.c1]); } else if (d.b === rm.i) { const dd = R.doors[d.bdi]; gaps[dd.side].push([dd.c0, dd.c1]); } }
+  for (const d of (rm.portalDoors || [])) gaps[d.side].push([d.c0, d.c1]);
+  const sides = { N: { len: rm.W, nx: 0, nz: 1 }, S: { len: rm.W, nx: 0, nz: -1 }, W: { len: rm.D, nx: 1, nz: 0 }, E: { len: rm.D, nx: -1, nz: 0 } };
+  const wall = (s, c) => s === 'N' ? [rm.x + c, rm.z + t] : s === 'S' ? [rm.x + c, rm.z + rm.D - t] : s === 'W' ? [rm.x + t, rm.z + c] : [rm.x + rm.W - t, rm.z + c];
+  const solid = info.boxes.filter(b => b.kind === 'cover' || b.kind === 'block');
+  const avoidPts = [].concat(info.zone ? [info.zone] : [], info.m && info.m.mini ? [info.m.mini] : []);
+  const gen = relaxed => {
+    const out = [], gm = relaxed === 2 ? 0 : relaxed ? 0.2 : 1.0, bm = relaxed === 2 ? 0.1 : relaxed ? 0.3 : 0.8, edge = relaxed === 2 ? 1.8 : relaxed ? 2.2 : 3.0;
+    for (const s of ['N', 'E', 'S', 'W']) {
+      const S = sides[s];
+      for (let c = edge; c <= S.len - edge + 1e-6; c += 1) {
+        if (gaps[s].some(g => c + HW + gm > g[0] && c - HW - gm < g[1])) continue;
+        const [wx, wz] = wall(s, c), mx = wx + S.nx * cfg.mouth, mz = wz + S.nz * cfg.mouth;
+        // clear box in front of the hatch (hatch width + margin, from the wall out to mouth + 1.2)
+        const bx0 = Math.min(wx - HW - bm, wx + S.nx * (cfg.mouth + 1.2) - HW - bm), bx1 = Math.max(wx + HW + bm, wx + S.nx * (cfg.mouth + 1.2) + HW + bm);
+        const bz0 = Math.min(wz - HW - bm, wz + S.nz * (cfg.mouth + 1.2) - HW - bm), bz1 = Math.max(wz + HW + bm, wz + S.nz * (cfg.mouth + 1.2) + HW + bm);
+        // restrict the long axis to the hatch width, the short axis to depth
+        const rx0 = S.nx === 0 ? wx - HW - bm : Math.min(wx, wx + S.nx * (cfg.mouth + 1.2)) - bm, rx1 = S.nx === 0 ? wx + HW + bm : Math.max(wx, wx + S.nx * (cfg.mouth + 1.2)) + bm;
+        const rz0 = S.nz === 0 ? wz - HW - bm : Math.min(wz, wz + S.nz * (cfg.mouth + 1.2)) - bm, rz1 = S.nz === 0 ? wz + HW + bm : Math.max(wz, wz + S.nz * (cfg.mouth + 1.2)) + bm;
+        if (solid.some(b => b.x0 < rx1 && b.x1 > rx0 && b.z0 < rz1 && b.z1 > rz0)) continue;
+        if (avoidPts.some(p => Math.hypot(p[0] - mx, p[1] - mz) < (relaxed === 2 ? 2 : relaxed ? 3.5 : 6))) continue;
+        out.push({ side: s, c, cx: wx, cz: wz, nx: S.nx, nz: S.nz, mx, mz, sx: wx + S.nx * 0.35, sz: wz + S.nz * 0.35 });
+      }
+    }
+    return out;
+  };
+  const want = Math.min(4, Math.max(2, (cfg.counts && cfg.counts[rm.role]) || 3)), chosen = [];
+  const take = (list, gap) => {   // greedy farthest-point pick from one candidate list
+    let cands = list.filter(q => chosen.every(o => Math.hypot(q.cx - o.cx, q.cz - o.cz) > gap));
+    while (chosen.length < want && cands.length) {
+      let bi = 0, bs = -1;
+      cands.forEach((q, i) => { let s = 0; if (!chosen.length) s = rng() * 100; else { s = 1e9; for (const o of chosen) { const d = Math.hypot(o.cx - q.cx, o.cz - q.cz) + (o.side === q.side ? -6 : 0); if (d < s) s = d; } s += rng() * 2; } if (s > bs) { bs = s; bi = i; } });
+      const c = cands[bi]; chosen.push(c); cands = cands.filter(q => Math.hypot(q.cx - c.cx, q.cz - c.cz) > gap);
+    }
+  };
+  take(gen(false), 2 * HW + 1.0);                                  // strict clearances, well spaced
+  if (chosen.length < 2) take(gen(1), 2 * HW + 0.6);               // looser clearances (tight tiles)
+  if (chosen.length < 2) take(gen(2), 2 * HW + 0.2);               // last resort: edge-hugging hatches
+  return chosen;
+}
+const SD_ROLES = { arena: 1, objective: 1, objective2: 1, mini: 1 };
+function sdPlanLevel(L, wd) {
+  const out = {};
+  for (const rm of L.rooms) { if (!SD_ROLES[rm.role]) continue; out[rm.i] = sdPlanRoom(rm, wd.rooms[rm.i], L, pgRng('sd' + L.seed + ':' + rm.i)); }
+  return out;
+}
+
+// ---- level hooks ----
+function sdDispose() {
+  for (const p of SD.pool) { if (p.mesh.parent) p.mesh.parent.remove(p.mesh); p.mesh.material.dispose(); }
+  if (SD.geo) { SD.geo.dispose(); SD.geo = null; }
+  SD.pool = []; SD.pending = []; SD.direct = []; SD.rooms = {}; SD.all = []; SD.ready = false; SD.boss = false; SD.heldSince = -1;
+}
+function sdClear() {   // drop every queued / telegraphing spawn (stage end, rout, teardown)
+  for (const p of SD.pending) sdRelease(p);
+  SD.pending = []; SD.direct = []; SD.heldSince = -1;
+}
+function lvAfterBuild() {
+  sdDispose(); sdResetStats();
+  const L = LV.L, plan = sdPlanLevel(L, LV.wd); SD.boss = false;
+  const lit = {}, glow = {};
+  for (const ri in plan) {
+    const room = LV.rooms[ri], doors = plan[ri].map((q, k) => Object.assign(q, { id: 'r' + ri + '.' + k, room: +ri, busyUntil: 0, openUntil: 0 }));
+    SD.rooms[ri] = doors; for (const d of doors) SD.all.push(d);
+    const lt = new BoxBatch(), gl = new BoxBatch(), hw = sdCfg().hw, H = 3.0;
+    for (const d of doors) {   // dark recessed hatch: black panel + dim amber frame + hazard threshold
+      const ax = d.nx === 0 ? 1 : 0, az = d.nx === 0 ? 0 : 1;   // along-wall axis
+      const x0 = d.cx - ax * hw - (d.nx > 0 ? 0 : d.nx < 0 ? 0.08 : 0), x1 = d.cx + ax * hw + (d.nx > 0 ? 0.08 : 0), z0 = d.cz - az * hw - (d.nz > 0 ? 0 : d.nz < 0 ? 0.08 : 0), z1 = d.cz + az * hw + (d.nz > 0 ? 0.08 : 0);
+      lt.box(x0, 0, z0, x1, H, z1, 0x05070a, 0.55, true);
+      const f = 0.14, ox = d.nx * 0.05, oz = d.nz * 0.05;   // frame proud of the panel
+      const fx0 = x0 + ox - (d.nx === 0 ? f : 0), fx1 = x1 + ox + (d.nx === 0 ? f : 0), fz0 = z0 + oz - (d.nz === 0 ? f : 0), fz1 = z1 + oz + (d.nz === 0 ? f : 0);
+      gl.box(fx0, H, fz0, fx1, H + 0.14, fz1, PGC.amber, 0.5, true);
+      if (d.nx === 0) { gl.box(x0 - f, 0, z0 + oz - 0.02, x0, H + 0.14, z1 + oz + 0.02, PGC.amber, 0.38, true); gl.box(x1, 0, z0 + oz - 0.02, x1 + f, H + 0.14, z1 + oz + 0.02, PGC.amber, 0.38, true); }
+      else { gl.box(x0 + ox - 0.02, 0, z0 - f, x1 + ox + 0.02, H + 0.14, z0, PGC.amber, 0.38, true); gl.box(x0 + ox - 0.02, 0, z1, x1 + ox + 0.02, H + 0.14, z1 + f, PGC.amber, 0.38, true); }
+      gl.box(x0 + d.nx * 0.25 - (d.nx === 0 ? 0 : 0), 0, z0 + d.nz * 0.25, x1 + d.nx * 0.25, 0.04, z1 + d.nz * 0.25, PGC.amber, 0.45, true);
+    }
+    for (const [bt, mat] of [[lt, LV.matLit], [gl, LV.matGlow]]) { const g = bt.geo(); LV.geos.push(g); const m = new THREE.Mesh(g, mat); m.raycast = noopRaycast; LV.group.add(m); room.meshes.push(m); }
+  }
+  SD.ready = Object.keys(SD.rooms).length > 0;
+}
+function sdBuildBoss() {   // the arena's 4 add doorways are the spawn doors
+  sdDispose(); sdResetStats(); SD.boss = true;
+  const doors = LV.dws.map((d, i) => { const inx = -d.dir[0], inz = -d.dir[1]; return { id: 'b' + i, room: -1, dw: i, side: d.horiz ? 'N' : (d.cx < 0 ? 'W' : 'E'), cx: d.cx, cz: d.cz, nx: inx, nz: inz, mx: d.cx + inx * 2.8, mz: d.cz + inz * 2.8, sx: d.sp[0], sz: d.sp[1], busyUntil: 0, openUntil: 0, door: d }; });
+  SD.rooms.boss = doors; for (const d of doors) SD.all.push(d); SD.ready = true;
+}
+
+// ---- panel pool (the glowing / opening shutter drawn over the static hatch) ----
+function sdPanel(d) {
+  if (!SD.geo) SD.geo = new THREE.PlaneGeometry(1, 1);
+  let p = SD.pool.find(q => !q.d);
+  if (!p) { const m = new THREE.Mesh(SD.geo, new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); m.raycast = noopRaycast; p = { mesh: m, d: null }; SD.pool.push(p); }
+  p.d = d; const m = p.mesh, w = d.door ? 6 : sdCfg().hw * 2, h = d.door ? 3.9 : 3.0;
+  m.scale.set(w, h, 1); m.position.set(d.cx + d.nx * 0.12, h / 2, d.cz + d.nz * 0.12); m.rotation.set(0, Math.atan2(d.nx, d.nz), 0); m.visible = true;
+  if (!m.parent) scene.add(m); return p;
+}
+function sdRelease(pend) { if (!pend || !pend.panel) return; pend.panel.d = null; pend.panel.mesh.visible = false; pend.panel = null; }
+
+// ---- door choice ----
+const _sdFr = new THREE.Frustum(), _sdM = new THREE.Matrix4(), _sdS = new THREE.Sphere();
+function sdFrustum() { camera.updateMatrixWorld(); _sdM.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); _sdFr.setFromProjectionMatrix(_sdM); }
+function sdInView(d) {
+  _sdS.center.set(d.cx, 1.5, d.cz); _sdS.radius = 2.0; if (_sdFr.intersectsSphere(_sdS)) return true;
+  _sdS.center.set(d.mx, 1.0, d.mz); _sdS.radius = 1.2; return _sdFr.intersectsSphere(_sdS);
+}
+function sdObjectives() {
+  const S = STRIKE, o = [];
+  if (S.zone && !S.zone.done) o.push([S.zone.x, S.zone.z]);
+  if (LV.flow && LV.flow.objRooms && !LV.boss) { const F = LV.flow; if (F.objStarted && !F.objDone) { const r = LV.rooms[(LV.spawnRooms && LV.spawnRooms[0] !== undefined) ? LV.spawnRooms[0] : F.objRooms[0]]; if (r && r.zone) o.push([r.zone[0], r.zone[1]]); } }
+  return o;
+}
+function sdCandidates() {
+  if (!SD.ready) return [];
+  if (SD.boss) return SD.rooms.boss || [];
+  const sr = lvSpawnRooms(), set = new Set();
+  for (const r of sr) { if (SD.rooms[r]) set.add(r); if (r >= 0 && LV.rooms[r]) for (const [n] of LV.rooms[r].nb) if (SD.rooms[n]) set.add(n); }   // own hatches plus the next room's: enemies walk in through the real door
+  if (!set.size) { const c = sr[0]; if (c !== undefined && c >= 0 && LV.rooms[c]) for (const [n] of LV.rooms[c].nb) if (SD.rooms[n]) set.add(n); }
+  const rooms = [...set];
+  const out = []; for (const r of rooms) for (const d of SD.rooms[r]) out.push(d); return out;
+}
+// tier by how long the spawn has been held: 1 (strict) -> 2 (hidden behind cover) -> 3 (>=12 m only) -> 4 (farthest door)
+const sdLevel = held => { const c = sdCfg(); return held < c.relax2 ? 1 : held < c.relax3 ? 2 : held < c.relax4 ? 3 : 4; };
+function sdEval(d, objs) {
+  const px = camera.position.x, pz = camera.position.z, c = sdCfg();
+  const dist = Math.min(Math.hypot(d.mx - px, d.mz - pz), Math.hypot(d.cx - px, d.cz - pz));
+  let od = 1e9; for (const o of objs) od = Math.min(od, Math.hypot(d.mx - o[0], d.mz - o[1]));
+  const inView = sdInView(d), occ = !segClear(px, pz, d.mx, d.mz, 0.1);
+  let blocked = false;
+  if (d.busyUntil > gt) blocked = true;
+  else if (!SD.boss && !pointFree(GRIDS.small, d.mx, d.mz)) blocked = true;
+  else for (const e of enemies) if (Math.hypot(e.position.x - d.mx, e.position.z - d.mz) < 1.8) { blocked = true; break; }
+  return { d, dist, od, inView, occ, blocked, far: dist >= c.minDist && od >= c.minObj };
+}
+function sdValid(ev, lvl) {
+  if (ev.blocked) return 0;
+  if (ev.far && !ev.inView) return 1;
+  if (lvl >= 2 && ev.far && ev.occ) return 2;
+  if (lvl >= 3 && ev.far) return 3;
+  if (lvl >= 4) return 4;
+  return 0;
+}
+function sdChoose(lvl, exclude) {
+  const cands = sdCandidates(); if (!cands.length) return null;
+  sdFrustum(); const objs = sdObjectives(); let best = null, bs = -1e9;
+  for (const d of cands) {
+    if (exclude && exclude === d) continue;
+    const ev = sdEval(d, objs), tier = sdValid(ev, lvl); if (!tier) continue;
+    const s = -tier * 100 + Math.min(ev.dist, 30) + Math.random() * 10;
+    if (s > bs) { bs = s; best = { ev, tier }; }
+  }
+  return best;
+}
+const sdWants = () => SD.ready && sdCandidates().length > 0;
+const sdPendingCount = () => { let n = SD.direct.length; for (const p of SD.pending) if (!p.emerging) n++; return n; };
+
+// ---- requests ----
+function sdStart(type, so, hook, cb, ch, lvlHeld) {
+  const d = ch.ev.d, P = sdCfg();
+  const pend = { type, so, hook, cb, d, tier: ch.tier, reqT: gt - lvlHeld, fireAt: gt + P.telegraph, startT: gt, panel: sdPanel(d), emerging: false };
+  d.busyUntil = gt + P.telegraph + P.emerge + 0.9; SD.pending.push(pend);
+  fx('ring', d.mx, 0.1, d.mz, 0xff7a22, 1.6, P.telegraph, 0.5);
+  if (SD.stats) SD.stats.requests++;
+  return pend;
+}
+function sdRequest(type, so, hook) {   // from pumpSpawns: true = accepted (telegraph started), false = held (door choice invalid right now)
+  const held = SD.heldSince < 0 ? 0 : gt - SD.heldSince, lvl = sdLevel(held), ch = sdChoose(lvl);
+  if (!ch) { if (SD.heldSince < 0) { SD.heldSince = gt; if (SD.stats) SD.stats.held++; } return false; }
+  SD.heldSince = -1; sdStart(type, so, hook, null, ch, held); return true;
+}
+function sdDirect(type, so, cb) {
+  if (!sdWants()) {   // no doors (legacy arena / odd layout): old behaviour, marker points of the room
+    const r = LV.rooms[so.room], pts = r ? (r.m.door || []).concat(r.m.hall || []) : [], p = pts[Math.floor(Math.random() * pts.length)] || [r ? r.cx : 0, r ? r.cz : 0];
+    const e = spawnEnemy(type, { x: p[0], z: p[1] }, so); if (cb) cb(e); return;
+  }
+  SD.direct.push({ type, so, cb, reqT: gt, hook: null });
+}   // squires etc.: spawned by sdTick whenever a door is valid
+function sdFire(p) {
+  const d = p.d, P = sdCfg(), st = SD.stats;
+  sdFrustum(); const ev = sdEval(d, sdObjectives());
+  const so = Object.assign({}, p.so, { instant: false }); if (!SD.boss) so.room = d.room;
+  const e = spawnEnemy(p.type, { x: d.mx, z: d.mz }, so), u = e.userData, dur = Math.max(P.emerge, Math.hypot(d.mx - d.sx, d.mz - d.sz) / 4.5);
+  u.emerge = { x0: d.sx, z0: d.sz, x1: d.mx, z1: d.mz, t0: gt, t1: gt + dur }; u.spawnUntil = gt + dur; u.sdTier = p.tier; u.sdDoor = d.id;
+  e.position.x = d.sx; e.position.z = d.sz; e.scale.setScalar(0.92); u.lastX = d.sx; u.lastZ = d.sz;
+  e.rotation.y = Math.atan2(d.nx, d.nz);
+  if (p.hook) p.hook(e, p.type); if (p.cb) p.cb(e);
+  p.emerging = true; p.openT0 = gt; p.openT1 = gt + dur + 0.25; d.busyUntil = gt + dur + 0.9;
+  if (d.door && d.door.panel && d.door.locked) { d.door.panel.visible = false; p.hidDoor = true; }
+  if (st) {
+    st.spawned++; st.byTier[p.tier] = (st.byTier[p.tier] || 0) + 1; if (SD.boss) st.boss++; if (p.tier >= 3) st.fallback++;
+    st.minDist = Math.min(st.minDist, ev.dist); if (ev.inView && !ev.occ) st.inViewAtSpawn++; if (ev.dist < sdCfg().minDist) st.nearAtSpawn++; if (ev.od < sdCfg().minObj) st.nearObjAtSpawn++;
+    SD.log.push({ t: +gt.toFixed(2), type: p.type, door: d.id, tier: p.tier, dist: +ev.dist.toFixed(1), od: ev.od > 1e8 ? null : +ev.od.toFixed(1), inView: ev.inView, occ: ev.occ, wait: +(gt - p.reqT).toFixed(2) }); if (SD.log.length > 600) SD.log.shift();
+  }
+  fx('ring', d.mx, 0.1, d.mz, 0xff7a22, 3, 0.6, 0.7);
+}
+function sdTick(dt) {
+  if (!SD.ready) return;
+  const P = sdCfg();
+  // direct queue (mini-boss squires): same rules, held until a door is valid
+  for (let i = 0; i < SD.direct.length; i++) {
+    const q = SD.direct[i], held = gt - q.reqT, ch = sdChoose(sdLevel(held));
+    if (ch) { SD.direct.splice(i, 1); i--; sdStart(q.type, q.so, null, q.cb, ch, held); }
+  }
+  for (let i = SD.pending.length - 1; i >= 0; i--) {
+    const p = SD.pending[i], d = p.d, pm = p.panel ? p.panel.mesh : null;
+    if (!p.emerging) {
+      const k = Math.min(1, (gt - p.startT) / P.telegraph), pulse = 0.55 + 0.45 * Math.sin(gt * (10 + 14 * k));
+      if (pm) { pm.material.color.setHex(k > 0.6 ? 0xff3322 : 0xff7a22); pm.material.opacity = 0.25 + 0.55 * pulse * (0.4 + 0.6 * k); }
+      if (gt >= p.fireAt) {
+        sdFrustum(); const held = gt - p.fireAt + (p.waited || 0), lvl = sdLevel(held), ev = sdEval(d, sdObjectives());
+        const okHere = sdValid(Object.assign({}, ev, { blocked: false }), lvl);   // our own door is "busy" because of us
+        if (okHere) { p.tier = Math.max(p.tier, okHere); sdFire(p); }
+        else {   // the player moved: try another door, else keep glowing and wait
+          const alt = sdChoose(lvl, d);
+          if (alt) { d.busyUntil = 0; sdRelease(p); p.d = alt.ev.d; p.tier = alt.tier; p.panel = sdPanel(alt.ev.d); p.startT = gt; p.fireAt = gt + 0.7; alt.ev.d.busyUntil = gt + 2.5; if (SD.stats) SD.stats.switched++; }
+          else { p.waited = (p.waited || 0) + 0.15; p.fireAt = gt + 0.15; }
+        }
+      }
+    } else {
+      const k = Math.min(1, (gt - p.openT0) / Math.max(0.2, p.openT1 - p.openT0));
+      if (pm) { const H = d.door ? 3.9 : 3.0, hh = Math.max(0.02, H * (1 - k)); pm.scale.y = hh; pm.position.y = H - hh / 2; pm.material.opacity = 0.9 * (1 - k * 0.8); }
+      if (k >= 1) { if (p.hidDoor && d.door && d.door.locked && d.door.panel) d.door.panel.visible = true; sdRelease(p); SD.pending.splice(i, 1); }
+    }
+  }
+}
+// QA: simulated probe of the door rules from a given player position (used by qa/tests/v11)
+function sdProbe(px, pz, yawv) {
+  const p0 = camera.position.clone(), r0 = camera.rotation.clone();
+  camera.position.set(px, 1.6, pz); camera.rotation.set(0, yawv, 0, 'YXZ');
+  sdFrustum(); const objs = sdObjectives(), out = sdCandidates().map(d => sdEval(d, objs));
+  camera.position.copy(p0); camera.rotation.copy(r0); camera.updateMatrixWorld(); return out;
+}
+// =====================================================================
+//  v11  PLAYERS[]  — architecture prep for AI teammates / co-op (NO visible teammates yet; single-player behaviour is unchanged)
+//   * players[]            list of player ENTITIES. players[0] is the local human (its pos IS camera.position, its state IS the global `player`).
+//   * controller           { type, poll(ent, dt) -> intent }. 'input' = touch / keyboard / gamepad (now), 'bot' = AI teammate brain (later), 'remote' = netcode intent (later).
+//   * intent               plain data: { ix, iz (move axes, camera-relative, -1..1), lookX, lookY (radians), sprint, jump, fire }  -> the simulation never reads keys / joysticks.
+//   * stepPlayerEntity()   SIMULATION: applies an intent (look, move, collide, gravity). Render (camera sync, HUD) is separate: syncPlayerRender().
+//   * TGT / aiTarget()     enemy targeting: every enemy picks the nearest living player entity (ties keep the previous target) and reads TGT.x/y/z from it.
+//   * hurtEnt()            damage routing: the local entity goes through damagePlayer (armor perks, shield, rumble), others through ent.damage().
+//  Spec: design/PLAYERS-ARCH.md
+// =====================================================================
+const players = [];
+const IDLE_INTENT = Object.freeze({ ix: 0, iz: 0, lookX: 0, lookY: 0, sprint: false, jump: false, fire: false });
+const CONTROLLERS = {
+  input: {   // the local human: gpTick / sprint / aim-assist friction stay input-side; the result is plain data
+    type: 'input',
+    poll(ent, dt) {
+      gpTick(dt); tickSprint();
+      const fr = applyAssist(dt);
+      const lookX = lookDelta.x * fr, lookY = lookDelta.y * fr; lookDelta.set(0, 0);
+      if (gt - lastLookAt > 0.15) lookSpeed = 0;
+      let ix = joyVec.x, iz = joyVec.y;
+      if (keys['KeyW'] || keys['ArrowUp']) iz += 1; if (keys['KeyS'] || keys['ArrowDown']) iz -= 1;
+      if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1; if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
+      return { ix, iz, lookX, lookY, sprint: !!(keys['ShiftLeft'] || autoSprint || gp.sprint) && (ix !== 0 || iz !== 0), jump: false, fire: !!(fireHeld || mouseHeld) };
+    }
+  },
+  bot:    { type: 'bot', poll(ent, dt) { return typeof ent.brain === 'function' ? (ent.brain(ent, dt) || IDLE_INTENT) : IDLE_INTENT; } },       // AI teammate: ent.brain(ent, dt) -> intent
+  remote: { type: 'remote', poll(ent) { const i = ent.netIntent || IDLE_INTENT; return i; } }                                                     // netcode: ent.netIntent is written by the transport
+};
+function createPlayerState(maxHealth = 100) {
+  return { health: maxHealth, maxHealth, shield: 0, maxShield: 0, dead: false, invulnUntil: 0, velocity: new THREE.Vector3(), grounded: true, jumps: 2, speedMult: 1, armorPerks: {}, sprinting: false, moving: false, power: 100, level: 1 };
+}
+// a non-local entity (bot / remote): own position vector and own state. No mesh yet (teammates are not rendered in v11a).
+function makePlayerEntity(o) {
+  o = o || {};
+  const ent = {
+    id: o.id !== undefined ? o.id : players.length, name: o.name || ('P' + players.length), kind: o.kind || 'bot', local: false, team: 0,
+    controller: CONTROLLERS[o.kind === 'remote' ? 'remote' : o.kind === 'input' ? 'input' : 'bot'],
+    pos: new THREE.Vector3(o.x || 0, 1.6, o.z || 0), yaw: o.yaw || 0, pitch: 0, state: o.state || createPlayerState(o.maxHealth || 100), brain: o.brain || null, netIntent: null,
+    damage(amount, tier) { const s = this.state; if (s.dead || gt < s.invulnUntil) return; s.health -= amount; if (s.health <= 0) { s.health = 0; s.dead = true; } }
+  };
+  return ent;
+}
+function addPlayerEntity(o) { const e = makePlayerEntity(o); players.push(e); return e; }
+function removePlayerEntity(ent) { const i = players.indexOf(ent); if (i > 0) players.splice(i, 1); }
+// the local human: pos = camera.position (same object), state = the global `player`, yaw / pitch = the camera's look globals
+const LOCAL_PLAYER = {
+  id: 0, name: 'You', kind: 'local', local: true, team: 0, controller: CONTROLLERS.input, pos: camera.position, state: player, brain: null, netIntent: null,
+  get yaw() { return yaw; }, set yaw(v) { yaw = v; }, get pitch() { return pitch; }, set pitch(v) { pitch = v; },
+  damage(amount, tier) { damagePlayer(amount, tier); }
+};
+players.push(LOCAL_PLAYER);
+
+// ---- SIMULATION: one step of one player entity from an intent. Identical maths to the v10 inline code for the local player.
+function stepPlayerEntity(ent, I, dt) {
+  const st = ent.state;
+  ent.yaw -= I.lookX; ent.pitch = clamp(ent.pitch - I.lookY, -1.4, 1.4);
+  let ix = I.ix, iz = I.iz;
+  st.sprinting = !!I.sprint && (ix !== 0 || iz !== 0);
+  const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
+  st.moving = il > 0.1 && !st.dead;
+  const sin = Math.sin(ent.yaw), cos = Math.cos(ent.yaw);
+  const mx = ix * cos - iz * sin, mz = -ix * sin - iz * cos; // (ix, 0, -iz) rotated by yaw
+  const dune = ent.local && st.armorPerks.dune ? 1 + AEV('dune', 'spd') : 1;
+  const spd = (st.sprinting ? 16.2 * dune : 9) * st.speedMult;
+  const p = ent.pos;
+  if (!st.dead) { p.x += mx * spd * dt; p.z += mz * spd * dt; pushOut(p, 0.45); }
+  if (!st.grounded) st.velocity.y -= 41.4 * dt;
+  p.y += st.velocity.y * dt;
+  const fl = 1.6 + groundAt(p.x, p.z);
+  if (st.grounded && st.velocity.y <= 0 && p.y > fl && p.y - fl < 0.3) p.y = fl;   // follow ramps down without hopping
+  if (p.y <= fl) { p.y = fl; st.grounded = true; st.jumps = 2; st.velocity.y = 0; }
+  else st.grounded = false;
+}
+// RENDER side of the local entity: the camera follows the entity's look
+function syncPlayerRender(ent) { if (ent.local) { camera.rotation.y = ent.yaw; camera.rotation.x = ent.pitch; } }
+function updatePlayers(dt) {
+  for (let i = 0; i < players.length; i++) { const e = players[i]; const I = e.controller.poll(e, dt); stepPlayerEntity(e, I, dt); syncPlayerRender(e); }
+}
+
+// ---- enemy targeting
+const TGT = { x: 0, y: 1.6, z: 0, ent: LOCAL_PLAYER, dead: false };   // the current enemy's target (set per enemy in updateEnemy)
+function aiTarget(e) {
+  const u = e && e.userData, ex = e ? e.position.x : 0, ez = e ? e.position.z : 0;
+  if (players.length === 1) return players[0];
+  let best = null, bd = 1e12, cur = u && u.tgtEnt;
+  for (const P of players) {
+    if (P.state.dead) continue;
+    let d = (P.pos.x - ex) * (P.pos.x - ex) + (P.pos.z - ez) * (P.pos.z - ez);
+    if (P === cur) d *= 0.8;   // hysteresis: do not flip-flop between two equidistant players
+    if (d < bd) { bd = d; best = P; }
+  }
+  if (!best) { for (const P of players) { const d = (P.pos.x - ex) * (P.pos.x - ex) + (P.pos.z - ez) * (P.pos.z - ez); if (d < bd) { bd = d; best = P; } } }
+  return best || players[0];
+}
+function setTarget(P) { TGT.ent = P; TGT.x = P.pos.x; TGT.y = P.pos.y; TGT.z = P.pos.z; TGT.dead = !!P.state.dead; return TGT; }
+const hurtEnt = (P, dmg, tier) => { if (P.local) damagePlayer(dmg, tier); else P.damage(dmg, tier); };
+function hurtPlayersNear(x, z, r, dmg, tier, maxY) {   // area damage to every living player entity in range
+  for (const P of players) { if (P.state.dead) continue; if (Math.hypot(P.pos.x - x, P.pos.z - z) < r && (maxY === undefined || P.pos.y < maxY + groundAt(P.pos.x, P.pos.z))) hurtEnt(P, dmg, tier); }
+}
 
 // =====================================================================
 //  INVENTORY UI
@@ -6488,6 +6984,15 @@ function exoPanelHTML(it) {
   h += '<div class="small" style="color:#9ab;margin-top:3px">Power ' + fmtN(it.power) + (ic ? ' &bull; ' + NAMES.empower + ' to ' + fmtN(it.power + ic.gap) + ': ' + fmtN(ic.g) + '\u25C6 ' + ic.s + '\u2756' : ' &bull; at your highest power') + '</div></div>';
   return h;
 }
+// v11 UL-1: one-tap "Raise to current power" for Common / Rare / Legendary (exotics keep their Reburnish button)
+function addRaiseButton(box, it) {
+  const ic = raiseCost(it), blk = raiseBlocked(it), tgt = raiseTarget();
+  const can = !!ic && !blk && mats.glimmer >= ic.g && mats.shards >= ic.s;
+  const rb = ce('button', 'upg raise', ic ? 'Raise to ' + fmtN(tgt) + ' \u25C6' + fmtN(ic.g) + (ic.s ? ' \u2756' + ic.s : '') : 'Raise (at your power)');
+  rb.id = 'detail-raise'; rb.disabled = !can;
+  rb.onclick = () => { const r = raiseItem(it); if (r.ok) { toast('Raised ' + it.name + ': ' + fmtN(r.from) + ' \u2192 ' + fmtN(r.to), '#7fe39a'); playTone(560, 0.2, 'triangle', 0.08); } else toast(r.why === 'strike' ? 'Raise between stages, not mid-Strike' : r.why === 'mats' ? 'Need ' + fmtN(r.cost.g) + '\u25C6 ' + r.cost.s + '\u2756 to Raise' : it.name + ' is already at your power', '#f66'); renderInventory(); };
+  box.appendChild(rb);
+}
 function addExoButtons(box, it) {
   if (!exoIsMax(it)) {
     const c = exoUpgradeCost(it), ok = exoXpReady(it) && canAffordUp(it);
@@ -6517,7 +7022,7 @@ function renderDetail() {
   for (const p of perkList(it)) h += '<div class="perk"><b style="color:' + (p.exotic ? '#f0c830' : '#d8c8ff') + '">' + p.name + '</b>' + (p.colLabel ? ' <span class="pcol">' + p.colLabel + '</span>' : '') + '<br><small>' + p.desc + '</small>' + (p.catalyst ? '<br><small class="cat' + (exoCat(it) ? ' on' : '') + '">' + (exoCat(it) ? '\u2605 CATALYST: ' : '\uD83D\uDD12 Catalyst (Lv 5): ') + p.catalyst + '</small>' : '') + (p.flavor ? '<br><small style="color:#889;font-style:italic">' + p.flavor + '</small>' : '') + '</div>';
   if (cur && cur !== it) h += '<small style="color:#789">Compared with equipped: ' + cur.name + ' (Power ' + fmtN(cur.power) + ')</small>';
   box.innerHTML = h;
-  if (it.rarity === 3 && EXO_SCALE[it.exoticPerk]) addExoButtons(box, it);
+  if (it.rarity === 3 && EXO_SCALE[it.exoticPerk]) addExoButtons(box, it); else if (it.rarity < 3) addRaiseButton(box, it);
   const eqb = ce('button', '', isEquipped(it) ? 'Equipped' : 'Equip'); eqb.disabled = isEquipped(it);
   eqb.onclick = () => { if (equipItem(it)) { toast('Equipped ' + it.name, rcol(it)); } renderInventory(); };
   const v = dismantleValue(it), armed = dmConfirm === it.id;
@@ -6536,7 +7041,7 @@ function togglePause() {
   $('pause-overlay').style.display = paused ? 'flex' : 'none';
   $('inventory-overlay').style.display = 'none';
   if (paused) {
-    fireHeld = false; mouseHeld = false; fireTouches.clear(); streams.clear(); fireBtn.classList.remove('down');
+    fireHeld = false; mouseHeld = false; fireTouches.clear(); streams.clear(); fireBtn.classList.remove('down'); leaveArm = 0; syncLeaveButtons();
     $('pause-info').innerHTML = (inStrike() ? STRIKE_DEFS[STRIKE.strikeId].name + '  |  Stage ' + STRIKE.stage + '/4' : 'Wave ' + wave) + '  |  Power ' + player.power + '  |  Best wave ' + bestWave + '<br><span style="font-size:13px">' + matsHTML() + '</span><br><span style="font-size:11px;color:#9ab">Grenade ' + Math.round(grenadeDamage()) + ' dmg &bull; Super ' + Math.round(SUPER_BASE.minor * superMult()) + ' / ' + Math.round(SUPER_BASE.major * superMult()) + ' / ' + Math.round(SUPER_BASE.boss * superMult()) + ' (adds / majors / boss)</span>';
     if (document.exitPointerLock) document.exitPointerLock();
   }
@@ -6657,7 +7162,7 @@ function updateHUD() {
   if (matsChangedAt && elM._m !== matsChangedAt) { elM._m = matsChangedAt; elM.classList.remove('flash'); void elM.offsetWidth; elM.classList.add('flash'); }
   { const nowMs = performance.now(); if (!updateHUD._fit || nowMs - updateHUD._fit > 350) { updateHUD._fit = nowMs; fitHud(); } }
   const sb = $('super-btn'), want = player.super >= 100 ? 'flex' : 'none'; if (sb._d !== want) { sb.style.display = want; sb._d = want; }
-  const left = enemies.filter(e => !e.userData.def.free).length + spawnQueue.length + bossQueue.length;
+  const left = enemies.filter(e => !e.userData.def.free).length + spawnQueue.length + bossQueue.length + (typeof sdPendingCount === 'function' ? sdPendingCount() : 0);
   setText(elL, 'Lv ' + player.level + ' | XP ' + Math.floor(player.xp) + '/' + player.xpToNext + '\n' + (inStrike() ? 'Stage ' + STRIKE.stage + '/4 \u00b7 ' + STRIKE_DEFS[STRIKE.strikeId].name : 'Wave ' + wave + (waveState === 'active' ? ' | Enemies ' + left : waveState === 'inter' ? ' | Intermission' : ' | Get ready')));
   updateStrikeHud();
   elL.style.whiteSpace = 'pre';
@@ -7143,6 +7648,7 @@ function updateAutoFire(dt) {
 //  SETTINGS UI
 // =====================================================================
 function syncSettingsUI() {
+  if (typeof syncLeaveButtons === 'function') syncLeaveButtons();
   $('s-look').value = settings.look; $('v-look').textContent = settings.look + '%';
   $('s-aim').value = settings.aim; $('v-aim').textContent = settings.aim + '%';
   $('s-btn').value = settings.btn; $('v-btn').textContent = settings.btn + '%';
@@ -7233,30 +7739,8 @@ handleOrientation();
 // =====================================================================
 let lastTs = performance.now();
 function update(dt) {
-  // look (input already curved); aim-assist friction slows it near targets, magnetism nudges yaw/pitch
-  gpTick(dt);
-  tickSprint();
-  const fr = applyAssist(dt);
-  yaw -= lookDelta.x * fr; pitch = clamp(pitch - lookDelta.y * fr, -1.4, 1.4);
-  camera.rotation.y = yaw; camera.rotation.x = pitch; lookDelta.set(0, 0);
-  if (gt - lastLookAt > 0.15) lookSpeed = 0;
-  // move
-  let ix = joyVec.x, iz = joyVec.y;
-  if (keys['KeyW'] || keys['ArrowUp']) iz += 1; if (keys['KeyS'] || keys['ArrowDown']) iz -= 1;
-  if (keys['KeyA'] || keys['ArrowLeft']) ix -= 1; if (keys['KeyD'] || keys['ArrowRight']) ix += 1;
-  player.sprinting = !!(keys['ShiftLeft'] || autoSprint || gp.sprint) && (ix !== 0 || iz !== 0);
-  const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
-  player.moving = il > 0.1 && !player.dead;
-  const sin = Math.sin(yaw), cos = Math.cos(yaw);
-  const mx = ix * cos - iz * sin, mz = -ix * sin - iz * cos; // (ix, 0, -iz) rotated by yaw
-  const spd = (player.sprinting ? 16.2 * (player.armorPerks.dune ? 1 + AEV('dune', 'spd') : 1) : 9) * player.speedMult;
-  if (!player.dead) { camera.position.x += mx * spd * dt; camera.position.z += mz * spd * dt; pushOut(camera.position, 0.45); }
-  if (!player.grounded) player.velocity.y -= 41.4 * dt;
-  camera.position.y += player.velocity.y * dt;
-  const fl = 1.6 + groundAt(camera.position.x, camera.position.z);
-  if (player.grounded && player.velocity.y <= 0 && camera.position.y > fl && camera.position.y - fl < 0.3) camera.position.y = fl;   // v10: follow ramps down without hopping
-  if (camera.position.y <= fl) { camera.position.y = fl; player.grounded = true; player.jumps = 2; player.velocity.y = 0; }
-  else player.grounded = false;
+  // v11: input -> intent -> simulation, per player entity (players[0] = the local human; see p8g.js / design/PLAYERS-ARCH.md)
+  updatePlayers(dt);
   // weapons
   kick = Math.max(0, kick - dt * 1.2); flashT -= dt; if (flashMesh && flashT <= 0) flashMesh.visible = false;
   if (weaponMesh) weaponMesh.position.z = -0.1 + kick * 1.5;
@@ -7351,7 +7835,7 @@ if (/[?&]qa=1(&|#|$)/.test(location.search)) (function () {
     if (n === null || n === undefined) { Math.random = realRandom; seed = null; return null; }
     seed = num(n, 'seed') >>> 0; Math.random = mulberry32(seed); return seed;
   }
-  const ALIAS = { kral: 'boss', warlord: 'boss', braskk: 'boss', chieftain: 'boss', marksman: 'sniper', voidorb: 'orb', gloomorb: 'orb', aegis: 'beacon', ward: 'beacon', wardbeacon: 'beacon', fusebug: 'shriek', scrapper: 'dreg', slinger: 'vandal', bannerjack: 'captain', plateback: 'knight' };   // old (pre-v9) aliases kept
+  const ALIAS = { kral: 'boss', braskk: 'boss', chieftain: 'boss', marksman: 'sniper', voidorb: 'orb', gloomorb: 'orb', aegis: 'beacon', ward: 'beacon', wardbeacon: 'beacon', fusebug: 'shriek', scrapper: 'dreg', slinger: 'vandal', bannerjack: 'captain', plateback: 'knight' };   // old (pre-v9) aliases kept
   function spawn(type, pos, opts) {
     opts = Object.assign({ instant: true }, opts || {});
     const t = ALIAS[String(type).toLowerCase()] || String(type).toLowerCase();
@@ -7432,6 +7916,14 @@ if (/[?&]qa=1(&|#|$)/.test(location.search)) (function () {
     version: 1, events: EVENTS.slice(),
     jumpToWave, jumpToStage, setSeed, spawnEnemy: spawn, grantItem, setPower, giveMats, godMode, timeScale, getState, onEvent,
     getEvents: (clear) => { const o = log.slice(); if (clear) log.length = 0; return o; },
+    players: {   // v11 (architecture prep): test hooks for the players[] list; no teammates are ever added in normal play
+      list: () => players.map(P => ({ id: P.id, kind: P.kind, local: P.local, x: +P.pos.x.toFixed(2), z: +P.pos.z.toFixed(2), dead: !!P.state.dead, health: Math.round(P.state.health) })),
+      addBot: (x, z, opts) => { const P = addPlayerEntity(Object.assign({ kind: 'bot', x, z }, opts || {})); return P.id; },
+      remove: id => { const P = players.find(q => q.id === id); if (P && !P.local) removePlayerEntity(P); return players.length; },
+      setIntent: (id, i) => { const P = players.find(q => q.id === id); if (P) { P.kind = 'remote'; P.controller = CONTROLLERS.remote; P.netIntent = Object.assign({}, IDLE_INTENT, i || {}); } },
+      get: id => { const P = players.find(q => q.id === id); return P ? { x: P.pos.x, y: P.pos.y, z: P.pos.z, yaw: P.yaw, health: P.state.health, dead: P.state.dead } : null; },
+      target: ei => { const e = enemies[ei | 0]; return e ? aiTarget(e).id : null; }
+    },
     clearEnemies: () => { for (const e of enemies.slice()) removeEnemy(e); spawnQueue = []; bossQueue = []; return 0; },
     dfps: window.DFPS
   };
