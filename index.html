@@ -184,6 +184,15 @@ canvas { display: block; }
 #inv-detail { flex: 1; overflow-y: auto; background: #12161c; border-radius: 6px; padding: 8px 10px; min-width: 0; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
 #inv-detail h3 { margin: 0 0 2px; font-size: 15px; }
 #inv-detail .row { display: flex; justify-content: space-between; border-bottom: 1px solid #222; padding: 2px 0; }
+#inv-hm { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; } #inv-hm:empty { display: none; }
+.hmchip { font-size: 10px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; } #inv-hm .hmchip { border: 1px solid; border-radius: 10px; padding: 1px 7px; background: #11202a; }
+#inv-detail .hm { margin: 6px 0; padding: 5px 7px; background: #12202a; border-left: 3px solid #66ddff; border-radius: 4px; font-size: 11px; line-height: 1.3; cursor: pointer; }
+#inv-detail .hm .hmh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; } #inv-detail .hm .hml { font-size: 9px; letter-spacing: 1.5px; color: #789; font-weight: 800; }
+#inv-detail .hm .hmt { margin-left: auto; font-size: 9px; font-weight: 800; letter-spacing: 0; white-space: nowrap; } #inv-detail .hm .hm2 { color: #789; } #inv-detail .hm .hm3 { color: #9ab; margin-top: 3px; border-top: 1px solid #234; padding-top: 3px; }
+#inv-detail .dacts { position: sticky; bottom: -8px; display: flex; flex-wrap: nowrap; gap: 4px; margin: 6px -10px -8px; padding: 5px 10px 6px; background: #12161c; border-top: 1px solid #2a3340; z-index: 2; }
+#inv-detail .dacts button { margin: 0; min-height: 40px; padding: 4px 6px; font-size: 11px; flex: 1 1 0; min-width: 0; line-height: 1.15; }
+#inv-detail .hm, #inv-detail .perk, #inv-detail .exopanel { scroll-margin-bottom: 58px; }
+#inv-detail .hm { padding: 4px 6px; margin: 4px 0; } #inv-detail .hm .hm1 { font-size: 11px; } #inv-detail .hm .hm2 { font-size: 10px; }
 #inv-detail .perk { margin: 4px 0; padding: 4px 6px; background: #1d232c; border-radius: 4px; }
 #inv-detail button { margin: 8px 6px 0 0; padding: 11px 16px; min-height: 44px; font-size: 13px; font-weight: 700; border: none; border-radius: 6px; color: #fff; background: #2a7a46; }
 #inv-detail button.danger { background: #8a2a2a; }
@@ -347,6 +356,7 @@ body.strikeboss.nobar #boss-bar { top: max(10px, env(safe-area-inset-top)); }
 </div>
 <div id="inventory-overlay">
   <div id="inv-top"><h2>INVENTORY</h2><span id="inv-power"></span><span id="inv-mats" class="matsline"></span><button class="pbtn" id="equip-best" style="padding:7px 12px;font-size:13px;margin:0;background:#2a7a46">Equip Best</button><button class="pbtn" id="close-inv" style="padding:7px 16px;font-size:14px;margin:0">Close</button></div>
+  <div id="inv-hm"></div>
   <div id="inv-equipped"></div>
   <div id="inv-main">
     <div id="inv-left">
@@ -573,7 +583,9 @@ const WEAPON_BASES = {
   plasma:  { name: 'Ion Carbine',    slot: 'energy',  damage: 26,  rate: 0.17, auto: true,  pellets: 1, range: 28, stab: 60, bloom: 0.013, w: 22 },
   rocket:  { name: 'Rocket Launcher', slot: 'power',   damage: 260, rate: 1.20, auto: false, pellets: 1, range: 60, stab: 80, bloom: 0.0,   w: 9, maxAmmo: 6 },
   launcher:{ name: 'Grenade Launcher', slot: 'power', damage: 190, rate: 1.0, auto: false, pellets: 1, range: 45, stab: 70, bloom: 0.0, w: 7, maxAmmo: 8 },
-  mg:      { name: 'Machine Gun',     slot: 'power',   damage: 17,  rate: 0.07, auto: true,  pellets: 1, range: 30, stab: 35, bloom: 0.009, w: 9, maxAmmo: 120 }
+  mg:      { name: 'Machine Gun',     slot: 'power',   damage: 17,  rate: 0.07, auto: true,  pellets: 1, range: 30, stab: 35, bloom: 0.009, w: 9, maxAmmo: 120 },
+  // v11b (LT-2): exotic-only base (w:0 = generic rolls / Ironmonger stock never pick it). Crosstalk is the only SMG.
+  smg:     { name: 'Submachine Gun',  slot: 'energy',  damage: 9,   rate: 0.075, auto: true, pellets: 1, range: 18, stab: 52, bloom: 0.012, w: 0 }
 };
 const LEG_NAMES = {
   pistol: ['Midnight Oath', 'Ember Sting'], rifle: ['Ironbark Burst', 'Stormline'],
@@ -601,6 +613,7 @@ const EXOTIC_PERKS = {
   hammer:    { name: 'Bottomless Belt',     desc: 'Kills refill 20 heavy rounds. Every 3rd kill restores 10 health.', flavor: 'It is never empty. Neither are you.' },
   storm:     { name: 'Capacitor Coil',  desc: 'Hits build charge. At 30 charges, unleash a ' + ELEMENTS.arc.name + ' burst.', flavor: 'Every shot is a thunderhead.' },
   rush:      { name: 'Redwake Tempo',        desc: 'Kills stack +20% damage and fire rate (x5) for 6s.', flavor: 'Keep killing. Keep climbing.' },
+  crosswire: { name: 'Crossed Wires',    desc: 'Precision kills confuse nearby minors so they shoot each other. Every 4th round is a Gloom seeker that chains.', flavor: 'Wrong channel. Right enemy.' },
   // ---- armor
   astro:     { name: 'Quickfuse Reserves',  desc: 'Grenade cooldown halved. Grenade kills instantly recharge it.', flavor: 'Starlight never runs out.' },
   harmony:   { name: 'Drumbeat Charge',   desc: '+50% Super energy gain. Killing a major or boss grants +20% Super.', flavor: 'Every fight sings.' },
@@ -625,7 +638,8 @@ const EXOTIC_WEAPONS = {
   swarm:     { name: 'Swarmcaster',          base: 'launcher', color: 0xc6ff66, tint: 0x344418, mod: { dmgMul: 0.8 } },
   hammer:    { name: 'Thrumgun',      base: 'mg',       color: 0xffaa22, tint: 0x45310e, mod: {} },
   storm:     { name: 'Stormstitch',      base: 'mg',       color: 0x55aaff, tint: 0x12305a, mod: {}, element: 'arc' },
-  rush:      { name: 'Redwake',       base: 'mg',       color: 0xff2255, tint: 0x4a0c20, mod: { dmgMul: 1.1 } }
+  rush:      { name: 'Redwake',       base: 'mg',       color: 0xff2255, tint: 0x4a0c20, mod: { dmgMul: 1.1 } },
+  crosswire: { name: 'Crosstalk',     base: 'smg',      color: 0xb48cff, tint: 0x3a4654, mod: {}, element: 'void', src: 'relay_yard', trim: 0xffa040 }   // v11b: Relay Yard exclusive (never in Patrol exotic rolls)
 };
 const EXOTIC_ARMOR = {
   helmet: { name: 'Orrery Hood', perk: 'astro', color: 0x66ccff }, arms: { name: 'Drumbeat Mantle', perk: 'harmony', color: 0xffcc44 },
@@ -672,7 +686,8 @@ const EXOTIC_LIST = [].concat(
 function markFound(it) { if (it && it.rarity === 3 && it.exoticPerk && !collection[it.exoticPerk]) { collection[it.exoticPerk] = true; return true; } return false; }
 // pick an exotic weapon id, favouring ones you have not found yet (3x weight)
 function pickExoticWeaponId(base) {
-  const ids = base ? (EXO_BY_BASE[base] || []) : Object.keys(EXOTIC_WEAPONS);
+  const ids = (base ? (EXO_BY_BASE[base] || []) : Object.keys(EXOTIC_WEAPONS)).filter(id => !EXOTIC_WEAPONS[id].src);   // v11b: activity-exclusive exotics (src) never roll generically
+  if (!ids.length) return Object.keys(EXOTIC_WEAPONS).filter(id => !EXOTIC_WEAPONS[id].src)[0];
   const bag = []; for (const id of ids) { const n = collection[id] ? 1 : 3; for (let i = 0; i < n; i++) bag.push(id); }
   return pick(bag);
 }
@@ -697,9 +712,9 @@ const STAT_NAMES = { res: 'Fortitude', rec: 'Mending', mob: 'Agility' };
 const MAX_INV = 60;
 
 function weaponName(base, rarity) {
-  if (rarity === 3) return EXOTIC_WEAPONS[pick(EXO_BY_BASE[base] || Object.keys(EXOTIC_WEAPONS))].name;
-  if (rarity === 2) return pick(LEG_NAMES[base]);
-  return pick(rarity === 1 ? ['Tuned', 'Veteran', 'Reliable'] : ['Standard', 'Worn', 'Rusty']) + ' ' + WEAPON_BASES[base].name;
+  if (rarity === 3) return EXOTIC_WEAPONS[pickExoticWeaponId(base)].name;
+  if (rarity === 2 && LEG_NAMES[base]) return pick(LEG_NAMES[base]);   // v11b: smg (Crosstalk only) has no Legendary names
+  return pick(rarity === 2 ? ['Forged'] : rarity === 1 ? ['Tuned', 'Veteran', 'Reliable'] : ['Standard', 'Worn', 'Rusty']) + ' ' + WEAPON_BASES[base].name;
 }
 // makeWeapon(base, rarity, power, exoId?) - for rarity 3 an exotic id (perk key) is chosen if not given
 function makeWeapon(base, rarity = 0, power = 100, exoId = null) {
@@ -792,6 +807,7 @@ function recalcStats() {
   const qc = Math.min(3, ap.quickcharge || 0);
   player.regenDelay = Math.max(1.4, 4 - rec * 0.012) * (1 - 0.2 * qc);
   player.regenTime = Math.max(1.2, 3.2 - rec * 0.01) * (1 - 0.1 * qc);
+  player.hm = hallmarkCounts();
   player.power = calcPower();
 }
 function bestNonExotic(slot) {
@@ -885,7 +901,7 @@ function starterGear() {
 // =====================================================================
 const SAVE_KEY = 'dfps_save';
 const SAVE_VERSION = 7;   // v7 (v11): progress.strikeDry (Strike loot pity counter) + settings.raiseAuto. NOTE: Classes (designed as v7) now take v8.
-const GAME_BUILD = 'v11a';
+const GAME_BUILD = 'v11b';
 const LEGACY_SAVE_KEY = 'dungeonfps.save.v2';        // v2-destiny .. v5-nostick wrote {v:2,...} here
 const LEGACY_SETTINGS_KEY = 'dungeonfps.settings.v1'; // v3-controls .. v5-nostick wrote settings here
 const BACKUP_PREFIX = 'dfps_backup_';
@@ -1292,7 +1308,7 @@ function resetSave() {
 //  Columns: A = barrel/mag (weapons) or mod (armor), B = trait, C = origin.   Rolls: Common B | Rare A+B | Legendary A+B+C | Exotic signature + A+B
 // =====================================================================
 const MAX_POWER = 99999999;
-const PERK_COL_LABEL = { weapon: { A: 'BARREL / MAG', B: 'TRAIT', C: 'ORIGIN' }, armor: { A: 'MOD', B: 'TRAIT', C: 'ORIGIN' } };
+const PERK_COL_LABEL = { weapon: { A: 'BARREL / MAG', B: 'TRAIT', C: 'ORIGIN', X: 'RELAY YARD' }, armor: { A: 'MOD', B: 'TRAIT', C: 'ORIGIN', X: 'RELAY YARD' } };   // v11b: X = activity-exclusive column (never rolled generically)
 const PERKS = {
   // ---- column A: barrel / magazine
   smoothbore:  { col: 'A', name: 'Polished Bore',           desc: '-30% bullet spread.', not: ['rocket', 'launcher'] },
@@ -1329,7 +1345,11 @@ const PERKS = {
   veist:       { col: 'C', name: 'Leech Stinger',        desc: 'Kills restore 5% max health (12% on majors).' },
   suros:       { col: 'C', name: 'Iron Regimen',         desc: 'Kills restore 8% max shield (18% on majors).' },
   cassoid:     { col: 'C', name: 'Frostbite Lecture',      desc: 'Hits chill enemies, slowing them for 1.5s.', not: ['rocket', 'launcher'] },
-  bray:        { col: 'C', name: 'Heirloom Ward',     desc: '+12% damage while your shield is full.' }
+  bray:        { col: 'C', name: 'Heirloom Ward',     desc: '+12% damage while your shield is full.' },
+  // ---- column X: activity exclusives (v11b LT-1). Added ONLY by strikeApplyEntry; rollPerkFor never rolls column X.
+  carriertone: { col: 'X', src: 'relay_yard', name: 'Carrier Tone', only: ['rifle'], desc: '+1% damage per hit on the same enemy (max +12%). Switching target halves the stacks; they fade after 1.2s without a hit.' },
+  heavyhaul:   { col: 'X', src: 'relay_yard', name: 'Heavy Haul',   only: ['shotgun'], desc: '+22% damage to enemies within 6m, fading to +0% at 11m. Kills within 6m give +25% fire rate for 2s.' },
+  mastmark:    { col: 'X', src: 'relay_yard', name: 'Mastmark',     only: ['rocket'], desc: 'A direct hit on a major, mini-boss or boss marks it for 8s. The next rocket hit on a marked target deals +40% and consumes the mark.' }
 };
 const APERKS = {
   // ---- column A: mods
@@ -1352,10 +1372,45 @@ const APERKS = {
   edge:        { col: 'C', name: 'Frontline Edge',   desc: '+5% weapon damage.' },
   grenadier:   { col: 'C', name: 'Grenadier',       desc: '+20% grenade damage and +8% grenade radius.' },
   overload:    { col: 'C', name: 'Overcharge',        desc: '+15% Super damage.' },
-  recuperation: { col: 'C', name: 'Second Wind',   desc: 'Health regenerates 60% faster.' }
+  recuperation: { col: 'C', name: 'Second Wind',   desc: 'Health regenerates 60% faster.' },
+  // ---- column X: activity exclusives (v11b LT-1), Signalward pieces roll ONE of these
+  gantryfooting: { col: 'X', src: 'relay_yard', name: 'Gantry Footing', desc: 'On raised ground (decks, gantries, perches): -6% damage taken per piece (max 3 pieces = -18%).' },
+  hotpatch:      { col: 'X', src: 'relay_yard', name: 'Hot Patch',      desc: 'A kill opens a 5s link: while linked, shield recharge starts 0.6s sooner per piece (max -1.8s, never below 1.5s).' }
 };
 const perkTable = it => (it && it.kind === 'armor') ? APERKS : PERKS;
-const ROLL_COLS = [['B'], ['A', 'B'], ['A', 'B', 'C'], ['A', 'B']];
+const ROLL_COLS = [['B'], ['A', 'B'], ['A', 'B', 'C'], ['A', 'B']];   // column X is never in a roll table
+// =====================================================================
+//  v11b LT-1: THEME SHEETS, HALLMARKS, SOURCE TIERS (data only). Hallmarks are DERIVED from the item's name (no save field, no version bump).
+//  An exclusive perk id belongs to exactly one activity. Counts: 1 piece x1.00, 2 x1.15, 3+ x1.30 (cap), weapon or armor, exotics included.
+// =====================================================================
+const HALLMARKS = {
+  carrierwave: { name: 'Carrier Wave', act: 'relay_yard', per: [0.008, 0.0092, 0.0104], max: 8, icd: 0.15, reset: 6, add: { minor: 1, major: 2, boss: 3 },
+    line: 'Weapon kills build Carrier Wave charges (1 minor, 2 major, 3 boss; max 8, fade after 6s). Each charge: +' }
+};
+const THEMES = {
+  relay_yard: { act: 'relay_yard', name: 'Relay Yard', tint: { body: 0x8493a3, trim: 0x66ddff, glow: 0xffa040 }, motif: 'antenna+dish', hallmark: 'carrierwave',
+    items: ['Shiftbell', 'Freightbreaker', 'Mastfall', 'Crosstalk', 'Signalward Helm', 'Signalward Gauntlets', 'Signalward Plate', 'Signalward Greaves', 'Signalward Sash'],
+    exclusives: ['carriertone', 'heavyhaul', 'mastmark', 'gantryfooting', 'hotpatch'] }
+};
+const ACTIVITY_ITEMS = {};
+for (const a of Object.keys(THEMES)) for (const n of THEMES[a].items) ACTIVITY_ITEMS[n] = { act: a, hallmark: THEMES[a].hallmark };
+// Tier budgets (data): Patrol baseline, Strike x1.25 weapons / x1.05 armor with an exclusive + Hallmark, Raid reserved (not shipped in a drop table yet)
+const TIER_BUDGET = {
+  patrol: { weapon: 1.20, armor: 1.00, perks: 3, hallmark: 0 },
+  strike: { weapon: 1.25, armor: 1.05, perks: 3, hallmark: 1 },
+  raid:   { weapon: 1.30, armor: 1.10, perks: 4, hallmark: 1, reserved: true }
+};
+const CROSSTALK_DROP = { unowned: 0.60, spotlight: 1.00, owned: 0.15 };   // conversion of an S1 boss-chest exotic WEAPON
+const hallmarkOf = it => (it && it.rarity >= 2 && it.name && ACTIVITY_ITEMS[it.name]) || null;   // rarity >= 2: Crosstalk is an exotic
+function hallmarkCounts(items) {
+  const out = {};
+  for (const it of (items || equippedItems())) { const h = hallmarkOf(it); if (h) out[h.act] = (out[h.act] || 0) + 1; }
+  return out;
+}
+const hallmarkMult = n => n >= 3 ? 1.3 : n === 2 ? 1.15 : n === 1 ? 1 : 0;
+function hallmarkPer(n) { return HALLMARKS.carrierwave.per[Math.max(0, Math.min(3, n) - 1)] || 0; }
+const hmTierIndex = n => Math.max(1, Math.min(3, n));
+
 function perkFits(p, it) {
   if (it.kind === 'armor') return true;
   const base = it.base, slot = it.slot;
@@ -1430,6 +1485,10 @@ defX('storm', { need: ['Hits to burst', '', 1, [30, 27, 24, 21, 18]], rad: ['Bur
   p => 'Hits build charge. At ' + p.need + ' charges, unleash a ' + p.rad + 'm ' + ELEMENTS.arc.name + ' burst.', 'The burst deals +50% damage and leaves 10 charge behind.');
 defX('rush', { per: ['Per stack', '%', 100, [.2, .22, .24, .26, .28]], max: ['Max stacks', '', 1, [5, 5, 6, 6, 6]], dur: ['Duration', 's', 1, [6, 6.5, 7, 7.5, 8]] },
   p => 'Kills stack +' + pct(p.per) + '% damage and fire rate (x' + p.max + ') for ' + p.dur + 's.', '+2 maximum stacks.');
+defX('crosswire', { rad: ['Burst radius', 'm', 1, [5, 5.5, 6, 6.5, 7]], dur: ['Confuse time', 's', 1, [3, 3.5, 4, 4.5, 5]], tg: ['Max targets per burst', '', 1, [3, 3, 4, 4, 5]], cap: ['Confused at once', '', 1, [6, 6, 6, 6, 8]],
+    nth: ['Seeker every Nth round', '', 1, [4, 4, 4, 4, 3]], smul: ['Seeker damage', 'x weapon', 1, [1.6, 1.7, 1.8, 1.9, 2]], chain: ['Chain targets after the first', '', 1, [2, 2, 3, 3, 4]], cone: ['Seeker cone', '\u00B0', 1, [18, 20, 22, 24, 26]] },
+  p => 'Precision kills confuse up to ' + p.tg + ' nearby minors for ' + p.dur + 's (' + p.rad + 'm): they shoot each other. Every ' + (p.nth === 3 ? '3rd' : '4th') + ' round is a ' + ELEMENTS.void.name + ' seeker that chains to ' + p.chain + ' more enemies. Majors are immune.',
+  'Every 3rd round seeks, up to 8 enemies stay confused, and confused enemies take +15% from all sources.');
 // ---- armor
 defX('astro', { cd: ['Grenade cooldown', '%', 100, [.5, .45, .4, .35, .3]] },
   p => 'Grenade cooldown reduced to ' + pct(p.cd) + '%. Grenade kills instantly recharge it.', 'Grenade kills also grant +10 Super.');
@@ -1534,8 +1593,9 @@ function raiseAll() {
 //  EQUIP BEST: maximise total power; ties -> rarity, stat total, then keep what is equipped. One exotic weapon + one exotic armor.
 // =====================================================================
 function itemStatTotal(it) { return it.kind === 'armor' ? it.stats.res + it.stats.rec + it.stats.mob : (it.damage * Math.max(1, it.pellets) / Math.max(0.03, it.rate)) + it.range + it.stab; }
-function cmpItem(a, b) {   // positive when a is better
-  return (a.power - b.power) || (a.rarity - b.rarity) || (itemStatTotal(a) - itemStatTotal(b)) || ((isEquipped(a) ? 1 : 0) - (isEquipped(b) ? 1 : 0));
+const hmHas = it => hallmarkOf(it) ? 1 : 0;
+function cmpItem(a, b) {   // positive when a is better (power, rarity, Hallmark piece, stat total, equipped)
+  return (a.power - b.power) || (a.rarity - b.rarity) || (hmHas(a) - hmHas(b)) || (itemStatTotal(a) - itemStatTotal(b)) || ((isEquipped(a) ? 1 : 0) - (isEquipped(b) ? 1 : 0));
 }
 function bestForSlot(slot, exotic) {
   let best = null;
@@ -1543,6 +1603,7 @@ function bestForSlot(slot, exotic) {
   return best;
 }
 const lockedEquipped = s => { const c = getItem(equip[s]); return c && c.locked ? c : null; };
+const keyBetter = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i]; return false; };
 function planBest(group) {
   const non = {}, exo = {};
   for (const s of group) { non[s] = bestForSlot(s, false); exo[s] = bestForSlot(s, true); }
@@ -1552,16 +1613,18 @@ function planBest(group) {
   const options = [null].concat(lockedExo ? [] : group.filter(s => exo[s] && !fixed[s]));
   let bestPlan = null, bestKey = null;
   for (const xs_ of options) {
-    const plan = {}; let ok = true, total = 0, rar = 0, stat = 0, keep = 0;
+    const plan = {}; let ok = true, total = 0, rar = 0, stat = 0, keep = 0, hmc = 0;
     for (const s of group) {
       const it = fixed[s] ? fixed[s] : (s === xs_ ? exo[s] : non[s]);
       if (!it) { const cur = getItem(equip[s]); if (!cur) { plan[s] = null; continue; } if (cur.rarity < 3) { plan[s] = cur; } else { ok = false; break; } }   // a slot with no candidate is left alone (v8: it no longer blocks the whole group)
       else plan[s] = it;
-      const p = plan[s]; total += p.power; rar += p.rarity; stat += itemStatTotal(p); if (isEquipped(p)) keep++;
+      const p = plan[s]; total += p.power; rar += p.rarity; stat += itemStatTotal(p); if (isEquipped(p)) keep++; if (hmHas(p)) hmc++;
     }
     if (!ok) continue;
-    const key = [total, rar, stat, keep];
-    if (!bestKey || key[0] > bestKey[0] || (key[0] === bestKey[0] && (key[1] > bestKey[1] || (key[1] === bestKey[1] && (key[2] > bestKey[2] || (key[2] === bestKey[2] && key[3] > bestKey[3])))))) { bestKey = key; bestPlan = plan; }
+    // v11b: Hallmark pieces (cap 3 across the whole loadout, counting the other group as currently equipped) sit between rarity and stat total
+    const other = group === WEAPON_SLOTS ? ARMOR_SLOTS : WEAPON_SLOTS; let oc = 0; for (const s of other) if (hmHas(getItem(equip[s]))) oc++;
+    const key = [total, rar, Math.min(3, hmc + oc), stat, keep];
+    if (!bestKey || keyBetter(key, bestKey)) { bestKey = key; bestPlan = plan; }
   }
   return bestPlan;
 }
@@ -1583,8 +1646,9 @@ function equipBest() {
   const res = { changes, powerBefore, powerAfter: player.power, skipped };
   if (!changes.length) toast('Already wearing your best gear.' + lockNote, '#9ab');
   else {
+    const hmc = player.hm || {}, hmTxt = Object.keys(hmc).map(a => ' \u2022 ' + THEMES[a].name + ' ' + Math.min(3, hmc[a]) + '/3').join('');
     const parts = changes.slice(0, 3).map(c => SLOT_LABEL[c.slot] + ': ' + c.to.name + ' (' + fmtN(c.to.power) + ')');
-    toast('Equip Best: ' + changes.length + ' change' + (changes.length > 1 ? 's' : '') + ' \u2022 ' + parts.join(', ') + (changes.length > 3 ? ' +' + (changes.length - 3) + ' more' : '') + ' \u2022 Power ' + fmtN(powerBefore) + ' \u2192 ' + fmtN(player.power) + lockNote, '#7fe39a');
+    toast('Equip Best: ' + changes.length + ' change' + (changes.length > 1 ? 's' : '') + ' \u2022 ' + parts.join(', ') + (changes.length > 3 ? ' +' + (changes.length - 3) + ' more' : '') + ' \u2022 Power ' + fmtN(powerBefore) + ' \u2192 ' + fmtN(player.power) + hmTxt + lockNote, '#7fe39a');
     playTone(620, 0.14, 'triangle', 0.07);
   }
   return res;
@@ -2102,12 +2166,14 @@ function updateProjectiles(dt) {
           fx('burst', px, py, pz, p.color, 0.7, 0.2, 0.7);
           dead = true; break;
         }
+      } else if (p.team === 'c') {      // v11b: Crosstalk friendly-fire bolt (hits minors only, never the player)
+        if (crossBoltHit(p, px, py, pz)) { dead = true; break; }
       } else if (p.kind === 'rocket' || (p.kind === 'gl' && !p.cluster)) {
         for (const e of enemies) {
           const u = e.userData;
           if (u.dead) continue;
           const dx = px - e.position.x, dz = pz - e.position.z, rr = u.r + 0.35;
-          if (dx * dx + dz * dz < rr * rr && py < u.def.h + 0.3) { projExplode(p); dead = true; break; }
+          if (dx * dx + dz * dz < rr * rr && py < u.def.h + 0.3) { p.direct = e; projExplode(p); dead = true; break; }
         }
       }
     }
@@ -2120,7 +2186,7 @@ function projExplode(p) {
   const x = p.m.position.x, y = Math.max(0.2, p.m.position.y), z = p.m.position.z;
   if (p.kind === 'rocket' || p.kind === 'gl') {
     const w = p.weapon;
-    explodeAt(x, y, z, p.splash, p.dmg, { element: w ? w.element : 'solar', weapon: w, color: p.kind === 'gl' ? (p.color || 0xb8e86a) : (w && w.rarity === 3 ? p.color : 0xff8833) });
+    explodeAt(x, y, z, p.splash, p.dmg, { element: w ? w.element : 'solar', weapon: w, rocket: p.kind === 'rocket', direct: p.direct, color: p.kind === 'gl' ? (p.color || 0xb8e86a) : (w && w.rarity === 3 ? p.color : 0xff8833) });
     if (w && w.rarity === 3) exoProjExplode(p, x, y, z);
   } else if (p.kind === 'grenade') {
     explodeAt(x, y, z, p.radius || 6, p.dmg, { element: 'void', color: 0xb066ff, noPerk: true, ability: true, minF: 0.7, src: 'grenade' });
@@ -2136,7 +2202,9 @@ function explodeAt(x, y, z, radius, dmg, o = {}) {
     const d = Math.hypot(dx, dz, dy * 0.6);
     if (d < radius + u.r) {
       const f = 1 - (1 - (o.minF || 0.5)) * Math.min(1, d / radius);
-      const dealt = dealDamage(e, dmg * f, { element: o.element, weapon: o.noPerk ? null : o.weapon, bonusWeapon: o.weapon, explosive: true, ability: o.ability, src: o.src, depth: o.depth });
+      let dm = dmg * f;
+      if (o.rocket && o.weapon && hasPerk(o.weapon, 'mastmark')) dm = mastmarkApply(e, dm, o.direct === e);   // v11b: Relay Yard Mastmark
+      const dealt = dealDamage(e, dm, { element: o.element, weapon: o.noPerk ? null : o.weapon, bonusWeapon: o.weapon, explosive: true, ability: o.ability, src: o.src, depth: o.depth });
       if (dealt > 0) showDamageNumber(new THREE.Vector3(e.position.x, e.position.y + u.def.h, e.position.z), dealt, false, hex(ELEMENTS[o.element || 'kinetic'].color));
     }
   }
@@ -2347,6 +2415,7 @@ function dealDamage(e, dmg, o = {}) {
   const u = e.userData;
   if (u.dead || gt < u.spawnUntil) return 0;
   if (u.invuln) { u.immuneHits = (u.immuneHits | 0) + 1; return 0; }    // Ward gate: the boss takes exactly 0
+  if (u.confMul && gt < u.confusedUntil) dmg *= u.confMul;               // v11b: Crosstalk catalyst, confused enemies take +15%
   if (gt < u.vulnUntil) dmg *= u.vulnMult || 1.25;                      // Exposed / stunned windows
   if (u.idle) u.idle = false;
   if (u.mini && u.shield > 0) dmg *= miniPlateMult(e);                // v10: Bulwark front plate
@@ -2640,6 +2709,7 @@ function updateEnemy(e, dt) {
   }
   if (u.type === 'boss') bossTick(e);
   if (u.idle) { if ((u.los && dist < 15) || dist < 6) u.idle = false; else { e.lookAt(px, e.position.y, pz); return; } }   // v10: sentries stand until they notice you or are hit
+  if (u.confusedUntil && gt >= u.confusedUntil) crossEnd(e);     // v11b: Crosstalk Confuse ran out (starts the 3 s re-confuse lockout)
   if (u.staggerUntil > gt) { u.vx = u.vz = 0; u.cvx *= 0.8; u.cvz *= 0.8; e.lookAt(px, e.position.y, pz); return; }   // v10: shield-break stagger (mini-boss)
   if (u.act) {
     const k = (gt - u.act.start) / u.act.dur;
@@ -2651,12 +2721,13 @@ function updateEnemy(e, dt) {
     if (b.i >= b.n) { u.burst = null; if (b.after) b.after(e); }
   }
   const y0 = e.position.y;
-  e.lookAt(px, e.position.y, pz);
+  if (u.confusedUntil && u.cvic && !u.cvic.userData.dead) e.lookAt(u.cvic.position.x, e.position.y, u.cvic.position.z); else e.lookAt(px, e.position.y, pz);
   if (u.mini && typeof miniFace === 'function') miniFace(e, u, dt);
   if (u.zoneGoal && !u.act && !u.burst) {       // strike capture stages: reinforcements head for the zone until they can see the player
     if (u.los || gt > u.zoneGoalUntil) u.zoneGoal = null; else pathMove(e, u.zoneGoal.x, u.zoneGoal.z, def.speed);
   }
-  if (!u.act && !u.burst && !u.zoneGoal) AI[u.type](e, dt, dist, dx, dz);
+  if (u.confusedUntil) crossAI(e, dt);                                  // v11b: confused minors fight each other and never target the player
+  else if (!u.act && !u.burst && !u.zoneGoal) AI[u.type](e, dt, dist, dx, dz);
   // smooth velocity, then move
   if (u.chillUntil > gt) { u.vx *= 0.6; u.vz *= 0.6; }   // Cold Snap
   const k = Math.min(1, dt * 7);
@@ -3220,7 +3291,7 @@ function updatePlayerRegen(dt) {
   if (player.dead) return;
   const since = gt - player.lastDamage;
   if (player.shield < player.maxShield) {
-    if (since >= player.regenDelay) {
+    if (since >= regenDelayNow()) {
       if (!player.regenning) { player.regenning = true; sweep(200, 600, 0.5, 'sine', 0.04); }
       player.shield = Math.min(player.maxShield, player.shield + player.maxShield / player.regenTime * dt);
     }
@@ -3245,13 +3316,17 @@ function refreshWeaponModel() {
   barrel.rotation.x = Math.PI / 2; barrel.position.set(0.28, -0.24, big ? -0.95 : -0.78); g.add(barrel);
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.22, 0.11), new THREE.MeshLambertMaterial({ color: 0x333333 }));
   grip.position.set(0.28, -0.42, -0.35); g.add(grip);
-  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.03, 0.3), new THREE.MeshBasicMaterial({ color: def ? def.color : ELEMENTS[w.element].color }));
+  const strip = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.03, 0.3), new THREE.MeshBasicMaterial({ color: def ? (def.trim || def.color) : ELEMENTS[w.element].color }));
   strip.position.set(0.28, -0.205, -0.5); g.add(strip);
   { const tn = strikeTint(w); if (tn && !def) { body.material.color.setHex(tn.body); body.material.emissive.setHex(tn.body); strip.material.color.setHex(tn.trim); const gl = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.2), new THREE.MeshBasicMaterial({ color: tn.glow })); gl.position.set(0.28, -0.23, -0.36); g.add(gl); } }   // v10: Relay Yard items carry the Signalward tint
   if (def) {   // exotic: glowing core + muzzle tip in the exotic's signature colour
     const core = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.22), new THREE.MeshBasicMaterial({ color: def.color })); core.position.set(0.28, -0.23, -0.36); g.add(core);
     const tip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), new THREE.MeshBasicMaterial({ color: def.color })); tip.position.set(0.28, -0.24, big ? -1.27 : -1.03); g.add(tip);
   }
+  { const hmk = hallmarkOf(w); if (hmk && hmk.act === 'relay_yard') {   // v11b Relay Yard motif: a short antenna mast on top and a small dish disc near the muzzle
+      const T = THEMES.relay_yard.tint, ant = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.17, 0.014), new THREE.MeshBasicMaterial({ color: T.trim })); ant.position.set(0.28, -0.13, -0.38); g.add(ant);
+      const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.012, 10), new THREE.MeshBasicMaterial({ color: T.glow })); dish.rotation.x = Math.PI / 2; dish.position.set(0.28, -0.2, big ? -0.88 : -0.72); g.add(dish);
+  } }
   flashMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.28), new THREE.MeshBasicMaterial({ color: def ? def.color : 0xffdd88, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }));
   flashMesh.position.set(0.28, -0.24, big ? -1.3 : -1.08); flashMesh.visible = false; g.add(flashMesh);
   g.scale.setScalar(0.55); g.position.set(0.1, 0.0, -0.1);
@@ -3305,6 +3380,7 @@ function shoot() {
 
   if (w.base === 'rocket' || w.base === 'launcher') { fireLauncher(w, mz, R); return true; }
   if (X === 'blade') { throwBlade(w); return true; }
+  if (X === 'crosswire' && crossSeeker(w, mz)) return true;   // v11b: every Nth round is a Gloom seeker (falls back to a normal bullet when nothing is in the cone)
   const hitMap = new Map();
   const crit = (w.base === 'shotgun' ? 1.5 : 2.0) * critMult(w), RNG = rangeOf(w);
   for (let p = 0; p < w.pellets; p++) {
@@ -3604,7 +3680,7 @@ function priceFor(it, w) {
 }
 function genStock(w) {
   const pw = Math.max(player.power, zonePower()), out = [];
-  const bases = Object.keys(WEAPON_BASES).sort(() => Math.random() - 0.5), slots = ARMOR_SLOTS.slice().sort(() => Math.random() - 0.5);
+  const bases = Object.keys(WEAPON_BASES).filter(k => WEAPON_BASES[k].w > 0).sort(() => Math.random() - 0.5), slots = ARMOR_SLOTS.slice().sort(() => Math.random() - 0.5);
   const push = it => { it.price = priceFor(it, w); it.sold = false; out.push(it); };
   const P = () => pw + randInt(0, 8);
   push(makeWeapon(bases[0], 2, P())); push(makeWeapon(bases[1], 2, P()));
@@ -3680,7 +3756,7 @@ function showChestPop(rows) {
   let h = '<h3>CHEST OPENED &mdash; ' + rows.length + ' ITEMS</h3>';
   for (const r of rows) {
     const it = r.it, d = r.delta;
-    h += '<div class="ci" style="border-left-color:' + bcol(it) + '"><span><b style="color:' + rcol(it) + '">' + it.name + '</b><br><small style="color:#9ab">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] + '</small></span>' +
+    h += '<div class="ci" style="border-left-color:' + bcol(it) + '"><span><b style="color:' + rcol(it) + '">' + it.name + '</b><br><small style="color:#9ab">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] + (hallmarkOf(it) ? ' <span style="color:' + hex(THEMES[hallmarkOf(it).act].tint.trim) + '">\u25C6 ' + HALLMARKS[hallmarkOf(it).hallmark].name + '</span>' : '') + '</small></span>' +
       '<span style="text-align:right">PWR <b>' + it.power + '</b><br>' + (d === null ? '<small class="up">NEW SLOT</small>' : d > 0 ? '<small class="up">\u25B2 +' + d + '</small>' : d < 0 ? '<small class="down">\u25BC ' + d + '</small>' : '<small style="color:#9ab">=</small>') + '</span></div>';
   }
   h += '<div class="acts"><button id="cp-gear" type="button">Gear</button><button id="cp-ok" class="go" type="button">OK</button></div>';
@@ -3949,11 +4025,12 @@ function updateStatuses() {
     const e = statusEnemies[i], u = e.userData;
     if (u.dead) { u.inSt = false; statusEnemies.splice(i, 1); continue; }
     let tint = 0, any = false;
-    for (const k of ['burn', 'poison', 'chill']) {
+    for (const k of ['burn', 'poison', 'chill', 'confuse']) {
       const s = u.st[k]; if (!s) continue;
       if (gt >= s.until) { u.st[k] = null; continue; }
       any = true; tint = STATUS_TINT[k];
       if (k === 'chill') { u.chillUntil = s.until; continue; }
+      if (k === 'confuse') continue;   // v11b: Crosstalk; the AI branch lives in p8h.js (crossAI), the status only carries the tint
       if (gt >= s.next) {
         s.next += 0.5;
         const d = dealDamage(e, s.dps * 0.5, { element: k === 'burn' ? 'solar' : 'void', weapon: s.w, depth: s.depth, dot: true });
@@ -4076,6 +4153,7 @@ function exoOnKill(w, e, o, x, z) {
       fx('ring', x, 0.15, z, 0xffaa22, 2.5, 0.4, 0.8);
       if (++xs.hammerKills % (cat ? 2 : 3) === 0) { const h = Math.round(player.maxHealth * EV(w, 'heal')); player.health = Math.min(player.maxHealth, player.health + h); toast('+' + fmtN(h) + ' HP', '#ffaa22'); exoLog('hammerheal'); }
       exoLog('refill'); break;
+    case 'crosswire': if (o.crit && d < 2) crossBurst(w, e, x, z); break;   // v11b: precision kills confuse nearby minors
     case 'rush':
       xs.rushStacks = Math.min(EV(w, 'max') + (cat ? 2 : 0), (gt < xs.rushUntil ? xs.rushStacks : 0) + 1); xs.rushUntil = gt + EV(w, 'dur');
       fx('ring', x, 0.15, z, 0xff2255, 2.5 + xs.rushStacks * 0.4, 0.45, 0.85); exoLog('rushstack'); break;
@@ -4276,7 +4354,7 @@ function updatePerkHud() {
 //  Kill perks only fire for depth-0 kills so DoTs / explosions / chain lightning that they cause can't recurse.
 //  Counters go to xs.log ('perk_<id>') for the automated tests.
 // =====================================================================
-const pk = { openNow: false, combatStart: 0, lastCombat: -99, headUntil: 0, ofa: new Map(), ofaUntil: 0, feedStacks: 0, feedUntil: 0, voltUntil: 0, voltAt: 0, swashStacks: 0, swashUntil: 0, surgeStacks: 0, surgeUntil: 0, loaderAt: 0 };
+const pk = { openNow: false, combatStart: 0, lastCombat: -99, headUntil: 0, ofa: new Map(), ofaUntil: 0, feedStacks: 0, feedUntil: 0, voltUntil: 0, voltAt: 0, swashStacks: 0, swashUntil: 0, surgeStacks: 0, surgeUntil: 0, loaderAt: 0, ctT: null, ctN: 0, ctUntil: 0, hhUntil: 0, hpUntil: 0 };   // v11b: Relay Yard perk state
 const apn = (k, cap) => Math.min(cap || 3, (player.ap && player.ap[k]) || 0);   // armor perk count (stacking is capped)
 const pLog = k => exoLog('perk_' + k);
 const recentHurt = () => gt - player.lastDamage < 4;
@@ -4308,10 +4386,13 @@ function perkRateMult(w) {
   if (hasPerk(w, 'lightmag')) m *= 1.1;
   if (hasPerk(w, 'feedingfrenzy') && gt < pk.feedUntil) m *= 1 + 0.08 * pk.feedStacks;
   if (hasPerk(w, 'frenzy') && inFrenzy()) m *= 1.12;
+  if (hasPerk(w, 'heavyhaul') && gt < pk.hhUntil) m *= 1.25;
   return m;
 }
 function perkDmgMultB(w, e) {
-  let m = 1;
+  let m = hmDmgMult();   // v11b: Hallmark Carrier Wave (player-level, all weapons)
+  if (hasPerk(w, 'carriertone') && e && e === pk.ctT && gt < pk.ctUntil) m *= 1 + 0.01 * pk.ctN;
+  if (hasPerk(w, 'heavyhaul')) m *= heavyHaulMult(e);
   if (hasPerk(w, 'fullchoke')) m *= 1.1;
   if (hasPerk(w, 'frenzy') && inFrenzy()) m *= 1.18;
   if (hasPerk(w, 'zenmoment') && recentHurt()) m *= 1.08;
@@ -4334,6 +4415,11 @@ function swapTime(w) {
   return Math.max(0.06, t);
 }
 function perkOnHit(w, root, rec) {
+  if (hasPerk(w, 'carriertone')) {
+    if (gt >= pk.ctUntil) { pk.ctN = 0; pk.ctT = null; }
+    if (root !== pk.ctT) { pk.ctN >>= 1; pk.ctT = root; }
+    pk.ctN = Math.min(12, pk.ctN + 1); pk.ctUntil = gt + 1.2; pLog('carriertone');
+  }
   if (rec.crit && hasPerk(w, 'headseeker')) { pk.headUntil = gt + 3; pLog('headseeker'); }
   if (hasPerk(w, 'oneforall')) {
     pk.ofa.set(root, gt);
@@ -4349,6 +4435,8 @@ function perkOnHit(w, root, rec) {
 function perkOnKill(w, e, o, x, z) {
   if ((o.depth | 0) !== 0) return;
   const tier = e.userData.tier, big = tier !== 'minor';
+  hmOnKill(tier);
+  if (hasPerk(w, 'heavyhaul') && Math.hypot(camera.position.x - x, camera.position.z - z) <= 6) { pk.hhUntil = gt + 2; pLog('heavyhaul'); }
   if (hasPerk(w, 'feedingfrenzy')) { pk.feedStacks = Math.min(3, (gt < pk.feedUntil ? pk.feedStacks : 0) + 1); pk.feedUntil = gt + 5; pLog('feedingfrenzy'); }
   if (hasPerk(w, 'dragonfly') && o.crit) {
     explodeAt(x, 1, z, 5, 90 * gearScale(w.power), { element: w.element, weapon: w, depth: 1, noPerk: true, color: 0xffaa44 });
@@ -4379,6 +4467,7 @@ function armorOnKill(e, o, x, z) {
   if ((n = apn('siphon'))) { player.shield = Math.min(player.maxShield, player.shield + player.maxShield * (big ? 0.15 : 0.06) * n); pLog('siphon'); }
   if ((n = apn('linkgren'))) { grenadeCooldown = Math.max(0, grenadeCooldown - (big ? 2 : 0.7) * n); pLog('linkgren'); }
   if ((n = apn('superlink'))) { addSuper((tier === 'boss' ? 15 : big ? 6 : 2) * n); pLog('superlink'); }
+  if (apn('hotpatch', 3)) { pk.hpUntil = gt + 5; pLog('hotpatch'); }
   if ((n = apn('surge'))) { pk.surgeStacks = Math.min(3, (gt < pk.surgeUntil ? pk.surgeStacks : 0) + 1); pk.surgeUntil = gt + 4; pLog('surge'); }
 }
 function armorDamageTaken(tier) {
@@ -4386,6 +4475,7 @@ function armorDamageTaken(tier) {
   const ap = player.ap; if (!ap) return m;
   if (tier === 'major' || tier === 'boss') m *= 1 - Math.min(0.4, 0.08 * apn('majorplate', 5));
   else if (tier === 'minor') m *= 1 - Math.min(0.4, 0.08 * apn('swarmplate', 5));
+  if (ap.gantryfooting && raisedGround()) { m *= 1 - 0.06 * apn('gantryfooting', 3); pLog('gantryfooting'); }
   if (ap.laststand && player.health < player.maxHealth * 0.35) m *= 1 - Math.min(0.5, 0.18 * apn('laststand', 5));
   return m;
 }
@@ -4700,7 +4790,7 @@ function resultsLeave() { if (STRIKE.resChest && !STRIKE.res.chestOpened) openSt
 const CHEST_TABLE = [10, 45, 45, 0], BOSS_TABLE = [0, 24, 70, 6];
 function rollTable(t) { let r = Math.random() * 100; for (let i = 0; i < 4; i++) { if (r < t[i]) return i; r -= t[i]; } return 1; }
 function strikeChestPower(P, tier) { return Math.min(capSoft(), Math.max(100, Math.round(P + DROP_BONUS[tier || 1] + rand(-2, 4)))); }
-function rollStrikeItem(rarity, P, tier, src) { return strikeLootSwap(generateLoot('chest', undefined, strikeChestPower(P, tier), rarity), src || 'chest'); }
+function rollStrikeItem(rarity, P, tier, src) { return strikeExoticConvert(strikeLootSwap(generateLoot('chest', undefined, strikeChestPower(P, tier), rarity), src || 'chest'), src || 'chest'); }
 // opens the 4-item chest (3 chest items + 1 boss item). forced = optional array of 4 rarities (debug).
 function openStrikeChest(forced) {
   const S = STRIKE; if (!S.res || S.res.chestOpened) return null;
@@ -4893,7 +4983,7 @@ function updateStrikeHud() {
   // zone marker
   const zn = S.zone;
   if (zn && S.stageState !== 'active') { zn.mk.style.display = 'none'; zn.mk._d = 'none'; }
-  if (zn && LV.on && (zn.done || !LV.flow || LV.flow.sub !== 'obj')) { zn.mk.style.display = 'none'; zn.mk._d = 'none'; }
+  if (zn && LV.on && (zn.done || !LV.flow || LV.flow.sub !== 'obj' || !lvZoneOwns(zn))) { zn.mk.style.display = 'none'; zn.mk._d = 'none'; }
   else if (zn && S.stageState === 'active') { const d = Math.hypot(camera.position.x - zn.x, camera.position.z - zn.z); placeMarker(zn.mk, zn.x, 3.5, zn.z, zn.label + ' ' + Math.round(d) + 'm', zn.done); }
 }
 function strikeMinimap(g) {
@@ -4943,7 +5033,7 @@ function renderMissionSelect() {
     c.innerHTML = '<h3>' + def.name + '</h3><div class="mtag">STRIKE \u2022 ' + def.tag + '</div><div>' + def.stages + ' stages \u2022 ~' + def.estMin + ' min</div>' +
       '<div>Enemy power <b>' + E + '</b> <small>(tracks your Power; boss +' + TUNING.strikePower.boss + ')</small></div><span class="chip ' + chip.cls + '" id="ms-chip" data-cls="' + chip.cls + '">PWR ' + player.power + ' / REC ' + E + ' \u2022 ' + chip.label + '</span>' +
       '<div class="mul" id="ms-mul">you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '</div>' +
-      '<div>Rewards: 4 gear drops, \u25C6 450  \u2756 3</div>' + (PROCGEN ? '<div class="drops">Drops: ' + STRIKE_DROPS_LINE + '</div>' : '') + '<div>Best time: ' + (sp.bestTimeSec ? fmtTime(sp.bestTimeSec) : '--') + ' \u2022 Clears: ' + sp.clears + '</div>' +
+      '<div>Rewards: 4 gear drops, \u25C6 450  \u2756 3</div>' + (PROCGEN ? '<div class="drops">Drops: ' + STRIKE_DROPS_LINE + '</div><div class="drops hmline" style="color:#66ddff">' + STRIKE_HALLMARK_LINE + '</div>' : '') + '<div>Best time: ' + (sp.bestTimeSec ? fmtTime(sp.bestTimeSec) : '--') + ' \u2022 Clears: ' + sp.clears + '</div>' +
       (msConfirm && chip.cls === 'red' ? '<div class="warnline" id="ms-confirm">Underpowered: you deal \u00d7' + chip.pdm.toFixed(2) + ' / take \u00d7' + chip.edm.toFixed(2) + '. Launch anyway?</div>' : '') + '<div class="sp"></div>';
     const b = document.createElement('button'); b.className = 'go ' + (chip.cls === 'red' ? 'red' : ''); b.id = 'ms-launch'; b.type = 'button'; b.textContent = (msConfirm && chip.cls === 'red') ? 'LAUNCH ANYWAY' : 'LAUNCH';
     b.onclick = () => { if (chip.cls === 'red' && !msConfirm) { msConfirm = true; renderMissionSelect(); return; } prog.active = null; startStrike('fallen_outpost', 1, 1); };
@@ -6119,18 +6209,19 @@ function lvMmBossExtras(g) {
 //  Legendary-only swap hooked into the existing drop paths (mini-boss kill, strike chests, caches, boss chest). No new item fields, no SAVE_VERSION bump:
 //  a swapped item is a normal Legendary whose name / base / perks are replaced; its tint is looked up by name at render time.
 // =====================================================================
-const STRIKE_TINT = { body: 0x8493a3, trim: 0x66ddff, glow: 0xffa040 };   // shared by every Signalward Relay Yard item
+const STRIKE_TINT = THEMES.relay_yard.tint;   // shared by every Signalward Relay Yard item
 const STRIKE_LOOT = {
   fallen_outpost: {
     weapons: [
-      { name: 'Shiftbell', base: 'rifle', A: ['lightmag', 'tacmag', 'accurized'], B: ['rapidhit', 'killclip', 'headseeker'], C: ['omolon'] },
-      { name: 'Freightbreaker', base: 'shotgun', A: ['fullchoke', 'quickdraw', 'lightmag'], B: ['openingshot', 'swashbuckler', 'killclip'], C: ['suros'] },
-      { name: 'Mastfall', base: 'rocket', A: ['extmag', 'quickdraw', 'lightmag'], B: ['subsistence', 'demolitionist', 'zenmoment'], C: ['vorpal'] }
+      { name: 'Shiftbell', base: 'rifle', A: ['lightmag', 'tacmag', 'accurized'], B: ['rapidhit', 'killclip', 'headseeker'], X: ['carriertone'] },
+      { name: 'Freightbreaker', base: 'shotgun', A: ['fullchoke', 'quickdraw', 'lightmag'], B: ['openingshot', 'swashbuckler', 'killclip'], X: ['heavyhaul'] },
+      { name: 'Mastfall', base: 'rocket', A: ['extmag', 'quickdraw', 'lightmag'], B: ['subsistence', 'demolitionist', 'zenmoment'], X: ['mastmark'] }
     ],
-    armor: { A: ['majorplate', 'loader', 'fleet'], B: ['siphon', 'superlink', 'surge'], C: ['fortify', 'edge'],
+    armor: { A: ['majorplate', 'loader', 'fleet'], B: ['siphon', 'superlink', 'surge'], X: ['gantryfooting', 'hotpatch'],
       pieces: [['helmet', 'Signalward Helm'], ['arms', 'Signalward Gauntlets'], ['chest', 'Signalward Plate'], ['legs', 'Signalward Greaves'], ['classitem', 'Signalward Sash']] }
   }
 };
+const STRIKE_HALLMARK_LINE = 'Hallmark: Carrier Wave \u00B7 Exotic: Crosstalk (boss chest)';
 const STRIKE_LOOT_RATE = { mini: 0.20, chest: 0.12, boss: 0.35 };
 const STRIKE_DRY_LIMIT = 5;
 const STRIKE_DROPS_LINE = 'Shiftbell \u00B7 Freightbreaker \u00B7 Mastfall \u00B7 Signalward set';
@@ -6147,6 +6238,15 @@ const strikeTint = it => (it && it.rarity === 2 && STRIKE_ITEM_NAMES[it.name]) ?
 const bcol = it => { const t = strikeTint(it); return t ? hex(t.trim) : rcol(it); };
 const strikeOwned = (name) => inventory.some(o => o.name === name) || Object.values(equip).some(id => { const it = getItem(id); return it && it.name === name; });
 function strikeSpotlight() { if (STRIKE_LOOT_DBG.spotlight) return true; try { if (typeof featured === 'function') { const f = featured(); return !!(f && f.id === STRIKE.strikeId); } } catch (e) {} return false; }
+// scale res/rec/mob by f with unbiased (stochastic) rounding of the TOTAL so the average is exactly x f at any power (plain rounding drifts +-2% on small stats)
+function strikeScaleStats(st, f) {
+  const ks = ['res', 'rec', 'mob'], raw = ks.map(k => st[k] * f), tot = raw.reduce((a, b) => a + b, 0);
+  let want = Math.floor(tot) + (Math.random() < tot - Math.floor(tot) ? 1 : 0);
+  const fl = raw.map(Math.floor); let rem = want - fl.reduce((a, b) => a + b, 0);
+  const order = [0, 1, 2].sort((a, b) => (raw[b] - fl[b]) - (raw[a] - fl[a]));
+  for (let i = 0; rem > 0 && i < 3; i++, rem--) fl[order[i]]++;
+  ks.forEach((k, i) => { st[k] = fl[i]; });
+}
 // apply an entry's name/base/perks onto a legendary item (only name, base and perks change; power, rarity, stats, element stay as rolled)
 function strikeApplyEntry(it, ent) {
   const pw0 = it.power;
@@ -6154,12 +6254,14 @@ function strikeApplyEntry(it, ent) {
     const d = ent.def, w = makeWeapon(d.base, 2, it.power);
     // keep the rolled weapon's own numbers, replace identity + perks
     w.id = it.id; w.name = d.name; w.perks = [];
-    for (const col of [d.A, d.B, d.C]) { const ok = col.filter(id => PERKS[id] && perkFits(PERKS[id], w)); if (ok.length) addPerk(w, pick(ok)); }
+    for (const col of [d.A, d.B, d.X]) { const ok = col.filter(id => PERKS[id] && perkFits(PERKS[id], w)); if (ok.length) addPerk(w, pick(ok)); }
+    w.damage = Math.round(w.damage * TIER_BUDGET.strike.weapon / TIER_BUDGET.patrol.weapon * 10) / 10;   // v11b LT-1: Strike tier x1.25 (Patrol Legendary is x1.20), baked once; setItemPower's ratio rescale keeps it
     sortPerks(w); Object.keys(w).forEach(k => { it[k] = w[k]; });
   } else {
     const d = ent.def, a = makeArmor(ent.slot, 2, it.power);
     a.id = it.id; a.name = ent.name; a.perks = [];
-    for (const col of [d.A, d.B, d.C]) { const ok = col.filter(id => APERKS[id]); if (ok.length) addPerk(a, pick(ok)); }
+    for (const col of [d.A, d.B, d.X]) { const ok = col.filter(id => APERKS[id]); if (ok.length) addPerk(a, pick(ok)); }
+    strikeScaleStats(a.stats, TIER_BUDGET.strike.armor / TIER_BUDGET.patrol.armor);   // v11b LT-1: armor total x1.05
     sortPerks(a); Object.keys(a).forEach(k => { it[k] = a[k]; });
   }
   it.power = pw0; it.rarity = 2;
@@ -6186,6 +6288,18 @@ function strikeLootSwap(it, source) {
   return it;
 }
 // called when a strike clears (stage-4 boss dead): converts the dry streak counter. strikeDry counts consecutive strike clears without a strike item.
+// v11b LT-2: the S1 boss-chest exotic WEAPON becomes Crosstalk with p = 0.60 (unowned) / 1.00 (Spotlight) / 0.15 (owned). Armor exotics and other strikes are untouched.
+const crosstalkOwned = () => !!collection.crosswire || inventory.some(o => o.exoticPerk === 'crosswire');
+function crosstalkChance() { return crosstalkOwned() ? CROSSTALK_DROP.owned : (strikeSpotlight() ? CROSSTALK_DROP.spotlight : CROSSTALK_DROP.unowned); }
+function strikeExoticConvert(it, source) {
+  if (!it || it.rarity !== 3 || it.kind !== 'weapon' || source !== 'boss') return it;
+  const sid = STRIKE.strikeId || 'fallen_outpost'; if (sid !== 'fallen_outpost') return it;
+  if (it.exoticPerk === 'crosswire' || Math.random() >= crosstalkChance()) return it;
+  const c = makeWeapon('smg', 3, it.power, 'crosswire'); c.id = it.id;
+  Object.keys(c).forEach(k => { it[k] = c[k]; });
+  STRIKE_LOOT_DBG.log.push({ source, name: it.name, exotic: true });
+  return it;
+}
 function strikeClearedLoot() {
   if (LV.strikeGot) { LV.strikeDry = 0; } else LV.strikeDry = (LV.strikeDry | 0) + 1;
   LV.strikeGot = false;
@@ -6443,9 +6557,20 @@ function lvWpTarget() {
   let c = goal, di = -1; while (prev[c][0] !== LV.cur && prev[c][0] >= 0) c = prev[c][0]; di = prev[c][1];
   const d = LV.doors[di]; return { x: d.cx, z: d.cz, label: label + ' \u25B6', door: true, di };
 }
+// v11b (D1): one marker per objective. While the HOLD THE RELAY zone is active, the cyan zone marker owns it when you are in its room and it is on screen;
+// otherwise the orange path marker (with the door arrow / edge clamp) owns it and the zone marker is hidden.
+function lvZoneOwns(zn) {
+  if (!zn || zn.done || !LV.on || !LV.flow || LV.flow.sub !== 'obj') return true;
+  if (LV.cur !== lvRoomAt(zn.x, zn.z)) return false;
+  if (Math.hypot(camera.position.x - zn.x, camera.position.z - zn.z) < 7) return true;   // standing at the ring: the path marker is already silent here
+  _mv.set(zn.x, 3.5, zn.z).applyMatrix4(camera.matrixWorldInverse); if (_mv.z > 0) return false;
+  _mp.set(zn.x, 3.5, zn.z).project(camera); return Math.abs(_mp.x) < 0.9 && Math.abs(_mp.y) < 0.8;
+}
 function lvWaypointTick() {
   if (!LV.wpEl) { const el = document.createElement('div'); el.className = 'mk'; el.style.color = '#ffa040'; $('markers').appendChild(el); LV.wpEl = el; }
-  const el = LV.wpEl, S = STRIKE, t = (inStrike() && !paused) ? lvWpTarget() : null; LV.wp = t;
+  const el = LV.wpEl, S = STRIKE; let t = (inStrike() && !paused) ? lvWpTarget() : null;
+  if (t && t.label === 'RELAY' && S.zone && lvZoneOwns(S.zone)) t = null;   // v11b (D1)
+  LV.wp = t;
   if (!t) { if (el._d !== 'none') { el.style.display = 'none'; el._d = 'none'; } return; }
   const d = Math.hypot(camera.position.x - t.x, camera.position.z - t.z); placeMarker(el, t.x, t.door ? 3.0 : 3.5, t.z, t.label + ' ' + Math.round(d) + 'm', true, true);
 }
@@ -6593,7 +6718,7 @@ function sdBuildBoss() {   // the arena's 4 add doorways are the spawn doors
 function sdPanel(d) {
   if (!SD.geo) SD.geo = new THREE.PlaneGeometry(1, 1);
   let p = SD.pool.find(q => !q.d);
-  if (!p) { const m = new THREE.Mesh(SD.geo, new THREE.MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false })); m.raycast = noopRaycast; p = { mesh: m, d: null }; SD.pool.push(p); }
+  if (!p) { const m = new THREE.Mesh(SD.geo, new THREE.MeshBasicMaterial({ color: 0x5a1409, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false })); m.raycast = noopRaycast; p = { mesh: m, d: null }; SD.pool.push(p); }
   p.d = d; const m = p.mesh, w = d.door ? 6 : sdCfg().hw * 2, h = d.door ? 3.9 : 3.0;
   m.scale.set(w, h, 1); m.position.set(d.cx + d.nx * 0.12, h / 2, d.cz + d.nz * 0.12); m.rotation.set(0, Math.atan2(d.nx, d.nz), 0); m.visible = true;
   if (!m.parent) scene.add(m); return p;
@@ -6662,7 +6787,7 @@ function sdStart(type, so, hook, cb, ch, lvlHeld) {
   const d = ch.ev.d, P = sdCfg();
   const pend = { type, so, hook, cb, d, tier: ch.tier, reqT: gt - lvlHeld, fireAt: gt + P.telegraph, startT: gt, panel: sdPanel(d), emerging: false };
   d.busyUntil = gt + P.telegraph + P.emerge + 0.9; SD.pending.push(pend);
-  fx('ring', d.mx, 0.1, d.mz, 0xff7a22, 1.6, P.telegraph, 0.5);
+  fx('ring', d.mx, 0.1, d.mz, 0xa8331a, 1.6, P.telegraph, 0.35);
   if (SD.stats) SD.stats.requests++;
   return pend;
 }
@@ -6694,7 +6819,7 @@ function sdFire(p) {
     st.minDist = Math.min(st.minDist, ev.dist); if (ev.inView && !ev.occ) st.inViewAtSpawn++; if (ev.dist < sdCfg().minDist) st.nearAtSpawn++; if (ev.od < sdCfg().minObj) st.nearObjAtSpawn++;
     SD.log.push({ t: +gt.toFixed(2), type: p.type, door: d.id, tier: p.tier, dist: +ev.dist.toFixed(1), od: ev.od > 1e8 ? null : +ev.od.toFixed(1), inView: ev.inView, occ: ev.occ, wait: +(gt - p.reqT).toFixed(2) }); if (SD.log.length > 600) SD.log.shift();
   }
-  fx('ring', d.mx, 0.1, d.mz, 0xff7a22, 3, 0.6, 0.7);
+  fx('ring', d.mx, 0.1, d.mz, 0xa8331a, 3, 0.6, 0.5);
 }
 function sdTick(dt) {
   if (!SD.ready) return;
@@ -6708,7 +6833,7 @@ function sdTick(dt) {
     const p = SD.pending[i], d = p.d, pm = p.panel ? p.panel.mesh : null;
     if (!p.emerging) {
       const k = Math.min(1, (gt - p.startT) / P.telegraph), pulse = 0.55 + 0.45 * Math.sin(gt * (10 + 14 * k));
-      if (pm) { pm.material.color.setHex(k > 0.6 ? 0xff3322 : 0xff7a22); pm.material.opacity = 0.25 + 0.55 * pulse * (0.4 + 0.6 * k); }
+      if (pm) { pm.material.color.setHex(k > 0.6 ? 0x8a1a10 : 0x5a1409); pm.material.opacity = 0.16 + 0.34 * pulse * (0.4 + 0.6 * k);  /* v11b (S1): a dark doorway warming to ember, not a bright orange panel */ }
       if (gt >= p.fireAt) {
         sdFrustum(); const held = gt - p.fireAt + (p.waited || 0), lvl = sdLevel(held), ev = sdEval(d, sdObjectives());
         const okHere = sdValid(Object.assign({}, ev, { blocked: false }), lvl);   // our own door is "busy" because of us
@@ -6835,6 +6960,183 @@ function hurtPlayersNear(x, z, r, dmg, tier, maxY) {   // area damage to every l
 }
 
 // =====================================================================
+//  v11b LT-1 / LT-2: RELAY YARD GEAR ENGINE
+//    - Hallmark "Carrier Wave" charges (player-level, derived from equipped item NAMES: see ACTIVITY_ITEMS in p1c.js)
+//    - Crosstalk (Crossed Wires): Confuse status, friendly-fire bolts (team 'c'), Gloom seeker rounds
+//  All counters go to xs.log: hm_carrier, perk_<id>, exo_confuse, exo_friendly_hit, exo_seek4, exo_resist.
+// =====================================================================
+const HMS = { n: 0, until: 0, lastAdd: -9 };
+const hmCount = () => (player.hm && player.hm.relay_yard) || 0;
+function hmCharges() { if (HMS.n && gt >= HMS.until) HMS.n = 0; return HMS.n; }
+function hmDmgMult() { const c = hmCount(); if (!c) return 1; const n = hmCharges(); return n ? 1 + hallmarkPer(c) * n : 1; }
+// one weapon kill (depth 0) -> charges; abilities never reach here (no weapon on their kills)
+function hmOnKill(tier) {
+  const c = hmCount(); if (!c) return;
+  const H = HALLMARKS.carrierwave; if (gt - HMS.lastAdd < H.icd) return;
+  HMS.lastAdd = gt; hmCharges();
+  HMS.n = Math.min(H.max, HMS.n + (tier === 'boss' ? H.add.boss : tier === 'minor' ? H.add.minor : H.add.major)); HMS.until = gt + H.reset;
+  exoLog('hm_carrier');
+}
+function hmReset() { HMS.n = 0; HMS.until = 0; HMS.lastAdd = -9; }
+
+// ---- exclusive perk helpers -------------------------------------------------------------
+const hhDist = e => Math.hypot(camera.position.x - e.position.x, camera.position.z - e.position.z);
+function heavyHaulMult(e) { if (!e) return 1; const d = hhDist(e); return d <= 6 ? 1.22 : d < 11 ? 1 + 0.22 * (11 - d) / 5 : 1; }
+// Mastmark: called for every enemy a rocket explosion damages. Returns the damage to apply.
+function mastmarkApply(e, dmg, direct) {
+  const u = e.userData; if (u.tier === 'minor') return dmg;
+  if (u.markUntil > gt) { u.markUntil = 0; pLog('mastmark_pop'); fx('ring', e.position.x, 0.2, e.position.z, 0xffa040, 3.2, 0.45, 0.95); return dmg * 1.4; }
+  if (direct) { u.markUntil = gt + 8; pLog('mastmark'); fx('ring', e.position.x, 0.2, e.position.z, 0x66ddff, 2.4, 0.9, 0.85); }
+  return dmg;
+}
+const regenDelayNow = () => { let d = player.regenDelay; const n = apn('hotpatch', 3); if (n && gt < pk.hpUntil) d = Math.max(Math.min(d, 1.5), d - 0.6 * n); return d; };
+const raisedGround = () => groundAt(camera.position.x, camera.position.z) >= 1.2;
+
+// ---- Crosstalk: Confuse -----------------------------------------------------------------
+STATUS_TINT.confuse = 0x5a2f9a;
+const CROSS_OK = { dreg: 1, vandal: 1, sniper: 1 };            // minors with a ranged attack
+const CROSS_FRIEND = u => u.tier === 'minor' && !u.def.noLoot && !u.def.ghost;   // who can be a victim / take a friendly bolt (not orbs / beacons)
+xs.confused = []; xs.crossBurstAt = 0; xs.crossN = 0;
+function floatText(wp, text, color) {
+  if (liveDmgNums > 14) return;
+  const proj = wp.clone().project(camera); if (proj.z > 1) return;
+  const div = document.createElement('div'); div.className = 'dmg'; div.textContent = text; div.style.color = color || '#b48cff'; div.style.fontSize = '13px';
+  div.style.left = ((proj.x + 1) / 2 * window.innerWidth) + 'px'; div.style.top = ((-proj.y + 1) / 2 * window.innerHeight) + 'px';
+  $('dmg-numbers').appendChild(div); liveDmgNums++; setTimeout(() => { div.remove(); liveDmgNums--; }, 700);
+}
+function crossPrune() { const L = xs.confused; for (let i = L.length - 1; i >= 0; i--) { const u = L[i].userData; if (u.dead || !(u.confusedUntil > gt)) L.splice(i, 1); } return L; }
+function crossEnd(e) {
+  const u = e.userData; u.confusedUntil = 0; u.confMul = 0; u.cvic = null; u.confuseLock = gt + 3;   // 3 s re-confuse lockout starts when it ends
+  if (u.st && u.st.confuse) u.st.confuse = null;
+  const i = xs.confused.indexOf(e); if (i >= 0) xs.confused.splice(i, 1);
+}
+function crossConfuse(e, w, dur) {
+  const u = e.userData;
+  u.act = null; u.burst = null; u.wind = 0; u.zoneGoal = null; u.path = null; u.cvx *= 0.3; u.cvz *= 0.3;
+  if (u.laser) releaseLaser(u); if (u.sstate) { u.sstate = 'relocate'; u.cool = Math.max(u.cool || 0, gt + dur + 1); }
+  if (u.muzzle) { u.muzzle.visible = false; }
+  u.confusedUntil = gt + dur; u.cw = w; u.cvicAt = 0; u.cvic = null; u.nextFriendly = gt + rand(0.5, 0.9);
+  u.confMul = exoCat(w) ? 1.15 : 0;
+  xs.confused.push(e);
+  addStatus(e, 'confuse', dur, 0, w, 0);
+  fx('ring', e.position.x, e.position.y + u.def.h + 0.2, e.position.z, 0xb48cff, 1.2, 0.5, 0.9);
+  floatText(new THREE.Vector3(e.position.x, e.position.y + u.def.h + 0.6, e.position.z), '???', '#c9a8ff');
+  exoLog('exo_confuse');
+}
+// precision kill at (x,z): burst + up to `tg` nearest eligible minors become confused
+function crossBurst(w, e, x, z) {
+  if (gt < xs.crossBurstAt) return; xs.crossBurstAt = gt + 0.5;
+  const rad = EV(w, 'rad'), dur = EV(w, 'dur'), tg = EV(w, 'tg'), cap = EV(w, 'cap');
+  fx('ring', x, 0.15, z, 0xb48cff, rad, 0.5, 0.85); fx('burst', x, 1.2, z, 0xb48cff, 1.6, 0.3, 0.6); sweep(900, 400, 0.18, 'sine', 0.05);
+  const L = crossPrune(), cand = [];
+  for (const o of enemies) {
+    const u = o.userData; if (o === e || u.dead || gt < u.spawnUntil) continue;
+    const d = Math.hypot(o.position.x - x, o.position.z - z); if (d > rad + u.r) continue;
+    if (!CROSS_OK[u.type] || u.mini) { exoLog('exo_resist'); floatText(bodyPt(o), 'RESIST', '#9a8fb0'); continue; }   // majors, mini-bosses, bosses, Fusebugs, Orbs, Beacons
+    if (u.confusedUntil > gt || gt < (u.confuseLock || 0)) continue;
+    cand.push({ o, d });
+  }
+  cand.sort((a, b) => a.d - b.d);
+  let n = 0;
+  for (const c of cand) {
+    if (n >= tg) break;
+    if (L.length >= cap) { const old = L[0]; old.userData.confusedUntil = gt + dur; if (old.userData.st && old.userData.st.confuse) old.userData.st.confuse.until = gt + dur; exoLog('exo_confuse_refresh'); break; }   // at the cap: only refresh the oldest
+    crossConfuse(c.o, w, dur); n++;
+  }
+  return n;
+}
+function crossVictim(e) {
+  let best = null, bd = 16 * 16; const u = e.userData;
+  for (const o of enemies) {
+    const v = o.userData; if (o === e || v.dead || gt < v.spawnUntil || !CROSS_FRIEND(v)) continue;
+    const dx = o.position.x - e.position.x, dz = o.position.z - e.position.z, d2 = dx * dx + dz * dz;
+    if (d2 < bd && segClear(e.position.x, e.position.z, o.position.x, o.position.z, 0.05)) { bd = d2; best = o; }
+  }
+  return best;
+}
+const _cf = new THREE.Vector3(), _cd = new THREE.Vector3();
+function crossFire(e, v) {
+  const u = e.userData, def = u.def;
+  const dx = v.position.x - e.position.x, dz = v.position.z - e.position.z, d = Math.hypot(dx, dz) || 1;
+  _cf.set(e.position.x + dx / d * (def.r + 0.4), e.position.y + def.mh, e.position.z + dz / d * (def.r + 0.4));
+  _cd.set(v.position.x, v.position.y + v.userData.def.h * 0.55, v.position.z).sub(_cf).normalize();
+  spawnProjectile({ team: 'c', kind: 'bolt', x: _cf.x, y: _cf.y, z: _cf.z, vx: _cd.x * 14, vy: _cd.y * 14, vz: _cd.z * 14, dmg: 0, color: 0xb48cff, size: 0.22, power: u.power, tier: 'minor', life: 2.5, shooter: e, weapon: u.cw });
+  playTone(210, 0.07, 'square', 0.03);
+}
+// friendly bolt reached a minor: 28 % of its max HP, credited to Crosstalk (no kill perks, no recursion)
+function crossFriendlyHit(v, p) {
+  const u = v.userData; if (u.dead) return;
+  const dmg = u.maxHp * 0.28;
+  u.hp -= dmg; u.flashUntil = gt + 0.08;
+  fx('burst', p.m.position.x, p.m.position.y, p.m.position.z, 0xb48cff, 0.9, 0.25, 0.8);
+  exoLog('exo_friendly_hit');
+  numAt(v, Math.round(dmg), '#c9a8ff');
+  if (u.hp <= 0) killEnemy(v, { bonusWeapon: p.weapon || null, depth: 2, noPerk: true, friendly: true });
+}
+function crossBoltHit(p, px, py, pz) {
+  for (const e of enemies) {
+    const u = e.userData; if (u.dead || e === p.shooter || gt < u.spawnUntil || !CROSS_FRIEND(u)) continue;
+    const dx = px - e.position.x, dz = pz - e.position.z, rr = u.r + 0.3 + p.size;
+    if (dx * dx + dz * dz < rr * rr && py > e.position.y - 0.1 && py < e.position.y + u.def.h + 0.3) { crossFriendlyHit(e, p); return true; }
+  }
+  return false;
+}
+// per-enemy AI while confused (replaces AI[type]); never targets the player
+function crossAI(e, dt) {
+  const u = e.userData; let v = u.cvic;
+  if (gt >= u.cvicAt || !v || v.userData.dead) { v = crossVictim(e); u.cvic = v; u.cvicAt = gt + 0.5; }
+  if (!v) return;
+  const dx = v.position.x - e.position.x, dz = v.position.z - e.position.z, dist = Math.hypot(dx, dz) || 0.001;
+  strafe(e, dist, dx, dz, u.def.speed * 0.4);
+  if (gt >= u.nextFriendly) { crossFire(e, v); u.nextFriendly = gt + rand(1.0, 1.3); }
+}
+
+// ---- Crosstalk: Gloom seeker round (every Nth shot) ------------------------------------
+const _ca = new THREE.Vector3();
+function crossSeekTarget(origin, dir, coneRad) {
+  let best = null, ba = coneRad;
+  for (const o of enemies) {
+    const u = o.userData; if (u.dead || gt < u.spawnUntil) continue;
+    _ca.set(o.position.x, o.position.y + u.def.h * 0.6, o.position.z).sub(origin);
+    const d = _ca.length(); if (d < 1 || d > 30) continue;
+    const a = Math.acos(clamp(_ca.dot(dir) / d, -1, 1));
+    if (a < ba && rayBoxesDist(origin, _ca.clone().normalize()) > d) { ba = a; best = o; }
+  }
+  return best;
+}
+// returns true when this shot was a seeker round (caller then skips the normal bullet); false = fire a normal bullet
+function crossSeeker(w, mz) {
+  xs.crossN++;
+  if (xs.crossN % EV(w, 'nth') !== 0) return false;
+  const org = camera.position, dir = _cd.set(0, 0, -1).applyQuaternion(camera.quaternion).clone();
+  const t = crossSeekTarget(org, dir, EV(w, 'cone') * Math.PI / 180);
+  if (!t) return false;
+  const col = 0xb48cff, base = w.damage * perkDamageMult(w, t) * EV(w, 'smul');
+  const hit = new Set([t]); let cur = bodyPt(t);
+  tracer(mz, cur, col, 0.22); fx('burst', cur.x, cur.y, cur.z, col, 1.0, 0.22, 0.8);
+  const rec = { dmg: base, crit: true, point: cur.clone() };   // counts as a precision hit (confuse trigger) but is not multiplied again
+  const dealt = dealDamage(t, rec.dmg, { element: 'void', crit: true, weapon: w });
+  exoLog('exo_seek4');
+  if (dealt > 0) {
+    showDamageNumber(cur, dealt, true);
+    const hm = $('hitmarker'); hm.className = 'crit'; hm.style.opacity = '1'; clearTimeout(hm._t); hm._t = setTimeout(() => { hm.style.opacity = '0'; }, 90);
+    perkOnHit(w, t, rec);
+  }
+  const hops = EV(w, 'chain'); let pt = cur, k = 0;
+  for (let h = 0; h < hops; h++) {
+    let best = null, bd = 8;
+    for (const o of enemies) { if (hit.has(o) || o.userData.dead || gt < o.userData.spawnUntil) continue; const d = Math.hypot(o.position.x - pt.x, o.position.z - pt.z); if (d < bd) { bd = d; best = o; } }
+    if (!best) break;
+    hit.add(best); const p = bodyPt(best); k++;
+    zap(pt, p, col); fx('burst', p.x, p.y, p.z, col, 0.9, 0.22, 0.75);
+    numAt(best, dealDamage(best, base * Math.pow(0.85, h + 1), { element: 'void', weapon: w, depth: 1 }), '#c9a8ff');
+    exoLog('exo_seek4_chain'); pt = p;
+  }
+  playTone(760, 0.08, 'triangle', 0.05);
+  return true;
+}
+
+// =====================================================================
 //  INVENTORY UI
 // =====================================================================
 let invFilter = 'weapons', selId = null, dmConfirm = null, dmTimer = null;
@@ -6886,6 +7188,7 @@ function doBulk(maxRarity) {
 function renderInventory() {
   $('inv-power').textContent = 'POWER ' + fmtN(player.power) + '  |  Lv ' + player.level + '  |  Res ' + fmtN(player.res) + ' Rec ' + fmtN(player.rec) + ' Mob ' + fmtN(player.mob);
   $('inv-mats').innerHTML = matsHTML();
+  { const hc = $('inv-hm'); hc.innerHTML = ''; for (const a of Object.keys(player.hm || {})) { const T = THEMES[a], n = player.hm[a]; hc.insertAdjacentHTML('beforeend', '<span class="hmchip" style="color:' + hex(T.tint.trim) + ';border-color:' + hex(T.tint.trim) + '">' + T.name.toUpperCase() + ' ' + hmPips(n) + ' ' + Math.min(3, n) + '/3 \u00B7 ' + HALLMARKS[T.hallmark].name + '</span>'); } }
   const eq = $('inv-equipped'); eq.innerHTML = '';
   for (const s of Object.keys(equip)) {
     const it = getItem(equip[s]);
@@ -6923,7 +7226,8 @@ function renderInventory() {
       const perks = perkList(it).filter(p => p.key !== 'cull').map(p => p.name).join(', ');
       let delta = '';
       if (cur && cur !== it) { const dv = it.power - cur.power; delta = dv ? ' <span class="' + (dv > 0 ? 'up' : 'down') + '">' + (dv > 0 ? '\u25B2+' : '\u25BC') + fmtN(dv) + '</span>' : ''; }
-      const extra = perks ? perks : (it.kind === 'armor' ? 'Res ' + fmtN(it.stats.res) + ' / Rec ' + fmtN(it.stats.rec) + ' / Mob ' + fmtN(it.stats.mob) : '');
+      const hmk = hallmarkOf(it), hmTxt = hmk ? '<span class="hmchip" style="color:' + hex(THEMES[hmk.act].tint.trim) + '">\u25C6 ' + HALLMARKS[hmk.hallmark].name + ' ' + hmPips((player.hm && player.hm[hmk.act]) || 0) + '</span>' : '';
+      const extra = (perks ? perks : (it.kind === 'armor' ? 'Res ' + fmtN(it.stats.res) + ' / Rec ' + fmtN(it.stats.rec) + ' / Mob ' + fmtN(it.stats.mob) : '')) + (hmTxt ? (perks || it.kind === 'armor' ? '<br>' : '') + hmTxt : '');
       const eqd = isEquipped(it);
       const row = ce('div', 'inv-item' + (eqd ? ' equipped' : '') + (it.id === selId ? ' sel' : ''));
       row.style.borderLeftColor = bcol(it);
@@ -6962,7 +7266,7 @@ function renderCollection(list) {
       const status = owned ? (isEquipped(owned) ? 'EQUIPPED' : 'IN INVENTORY') : got ? 'FOUND (not owned)' : 'NOT FOUND';
       row.innerHTML = '<div class="main"><b style="color:' + (got ? hex(x.color) : '#667') + '">' + (got ? x.name : '???') + '</b><span class="tag" style="background:' + (owned ? '#2a6' : got ? '#765' : '#333') + '">' + status + '</span><br><small>' +
         (kind === 'weapon' ? SLOT_LABEL[x.slot] + ' ' + WEAPON_BASES[x.base].name : SLOT_LABEL[x.slot] + ' armor') + '</small>' +
-        (got ? '<br><small><b style="color:#f0c830">' + ep.name + '</b>: ' + (EXO_SCALE[x.id] ? exoDescAt(x.id, owned ? exoLv(owned) : 1) : ep.desc) + '</small><br><small style="color:#889;font-style:italic">' + ep.flavor + '</small>' : '<br><small style="color:#667">Keep opening chests and clearing bosses to discover it.</small>') + '</div>';
+        (got ? '<br><small><b style="color:#f0c830">' + ep.name + '</b>: ' + (EXO_SCALE[x.id] ? exoDescAt(x.id, owned ? exoLv(owned) : 1) : ep.desc) + '</small><br><small style="color:#889;font-style:italic">' + ep.flavor + '</small>' : '<br><small style="color:#667">' + (EXOTIC_WEAPONS[x.id] && EXOTIC_WEAPONS[x.id].src ? 'Drops only from ' + THEMES[EXOTIC_WEAPONS[x.id].src].name + ' (Strike 1) boss chests.' : 'Keep opening chests and clearing bosses to discover it.') + '</small>') + '</div>';
       if (owned) row.onclick = () => { selId = owned.id; renderInventory(); };
       list.appendChild(row);
     }
@@ -7005,13 +7309,31 @@ function addExoButtons(box, it) {
   box.appendChild(eb);
 }
 $('equip-best').onclick = () => { equipBest(); renderInventory(); };
+// ---- v11b: Hallmark block + set pips (mobile card strip: HALLMARK  Carrier Wave   RELAY YARD ●●○ 2/3)
+const hmPips = n => '\u25CF'.repeat(Math.min(3, n)) + '\u25CB'.repeat(3 - Math.min(3, n));
+const f2 = v => (Math.round(v * 100) / 100).toString();
+function hallmarkBlock(it) {
+  const h = hallmarkOf(it); if (!h) return null;
+  const H = HALLMARKS[h.hallmark], T = THEMES[h.act], n = (player.hm && player.hm[h.act]) || 0, eq = isEquipped(it), eff = Math.max(1, eq ? n : n + 1);
+  const trim = hex(T.tint.trim), per = hallmarkPer(eff) * 100, peak = per * H.max;
+  const d = ce('div', 'hm');
+  d.style.borderLeftColor = trim; d.id = 'hallmark-block';
+  const next = eff >= 3 ? 'Set complete (a 4th piece adds nothing)' : (eff + 1) + ' piece' + (eff + 1 > 1 ? 's' : '') + (eff + 1 >= 3 ? '+' : '') + ': +' + f2(hallmarkPer(eff + 1) * 100) + '% per charge';
+  d.innerHTML = '<div class="hmh"><span class="hml">HALLMARK</span><b style="color:' + trim + '">' + H.name + '</b><span class="hmt" style="color:' + trim + '">' + T.name.toUpperCase() + ' <span class="pips">' + hmPips(n) + '</span> ' + Math.min(3, n) + '/3</span></div>' +
+    '<div class="hm1">+' + f2(per) + '% damage per charge \u00B7 max ' + H.max + ' \u00B7 peak +' + f2(peak) + '%' + (eq ? '' : ' <i>(if equipped)</i>') + '</div><div class="hm2">' + next + '</div>';
+  const list = ce('div', 'hm3'); list.style.display = 'none';
+  const pcs = equippedItems().filter(x => { const k = hallmarkOf(x); return k && k.act === h.act; });
+  list.textContent = pcs.length ? 'Counting now: ' + pcs.map(x => x.name).join(', ') : 'No ' + T.name + ' piece is equipped yet.';
+  d.appendChild(list); d.onclick = () => { list.style.display = list.style.display === 'none' ? 'block' : 'none'; };
+  return d;
+}
 function renderDetail() {
   const box = $('inv-detail'); box.innerHTML = '';
   const it = getItem(selId);
   if (!it) { box.innerHTML = '<small style="color:#789">Select an item to see stats, perks and a comparison with what you have equipped. Equipped items sit at the top of each section; the rest are sorted by Power, then rarity.<br><br>Dismantling returns ' + NAMES.brass + ' and ' + NAMES.cores + ', which you spend at the shop between waves.</small>'; return; }
   const cur = getItem(equip[it.slot]);
   let h = '<h3 style="color:' + rcol(it) + '">' + it.name + '</h3><div style="color:#9ab;margin-bottom:4px">' + RARITIES[it.rarity].name + ' ' + SLOT_LABEL[it.slot] +
-    (it.kind === 'weapon' ? ' ' + WEAPON_BASES[it.base].name + ' &bull; <span style="color:' + hex(ELEMENTS[it.element].color) + '">' + ELEMENTS[it.element].name + '</span>' : '') + '</div>';
+    (it.kind === 'weapon' ? ' ' + WEAPON_BASES[it.base].name + ' &bull; <span style="color:' + hex(ELEMENTS[it.element].color) + '">' + ELEMENTS[it.element].name + '</span>' : '') + (hallmarkOf(it) ? ' <span class="pcol" style="color:' + hex(THEMES[hallmarkOf(it).act].tint.trim) + ';border-color:' + hex(THEMES[hallmarkOf(it).act].tint.trim) + '">' + THEMES[hallmarkOf(it).act].name.toUpperCase() + '</span>' : '') + '</div>';
   const curRows = cur && cur !== it ? statRows(cur) : null;
   statRows(it).forEach((r, i) => {
     let diff = '';
@@ -7020,8 +7342,9 @@ function renderDetail() {
   });
   if (it.rarity === 3 && EXO_SCALE[it.exoticPerk]) h += exoPanelHTML(it);
   for (const p of perkList(it)) h += '<div class="perk"><b style="color:' + (p.exotic ? '#f0c830' : '#d8c8ff') + '">' + p.name + '</b>' + (p.colLabel ? ' <span class="pcol">' + p.colLabel + '</span>' : '') + '<br><small>' + p.desc + '</small>' + (p.catalyst ? '<br><small class="cat' + (exoCat(it) ? ' on' : '') + '">' + (exoCat(it) ? '\u2605 CATALYST: ' : '\uD83D\uDD12 Catalyst (Lv 5): ') + p.catalyst + '</small>' : '') + (p.flavor ? '<br><small style="color:#889;font-style:italic">' + p.flavor + '</small>' : '') + '</div>';
+  { const hb = hallmarkBlock(it); if (hb) { box.innerHTML = h; box.appendChild(hb); h = ''; } }
   if (cur && cur !== it) h += '<small style="color:#789">Compared with equipped: ' + cur.name + ' (Power ' + fmtN(cur.power) + ')</small>';
-  box.innerHTML = h;
+  if (h) box.insertAdjacentHTML('beforeend', h);
   if (it.rarity === 3 && EXO_SCALE[it.exoticPerk]) addExoButtons(box, it); else if (it.rarity < 3) addRaiseButton(box, it);
   const eqb = ce('button', '', isEquipped(it) ? 'Equipped' : 'Equip'); eqb.disabled = isEquipped(it);
   eqb.onclick = () => { if (equipItem(it)) { toast('Equipped ' + it.name, rcol(it)); } renderInventory(); };
@@ -7032,6 +7355,7 @@ function renderDetail() {
   const lk = ce('button', 'lockbtn' + (it.locked ? ' on' : ''), (it.locked ? '\uD83D\uDD12 Locked' : '\uD83D\uDD13 Lock')); lk.id = 'detail-lock';
   lk.onclick = () => { toggleLock(it); renderInventory(); };
   box.appendChild(eqb); box.appendChild(lk); box.appendChild(db);
+  { const bar = ce('div', 'dacts'); bar.id = 'detail-acts'; for (const b of [eqb, lk, db]) bar.appendChild(b); box.appendChild(bar); }   // v11b: Equip / Lock / Dismantle stay pinned at the bottom of the card (tall perk + Hallmark cards no longer push them off the phone screen)
 }
 
 function togglePause() {
